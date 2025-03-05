@@ -31,7 +31,7 @@
                       HorizontalAlignment="Center"
                       Margin="5" />
                 <TextBlock Grid.Column="1"
-                           Text="A sensor bin file stores calibration data and settings for an image sensor."
+                           Text="Presets are predefined configuration sets for camera settings that can be downloaded from GitHub repositories, loaded locally, and applied to customize camera parameters with a single click, allowing users to quickly configure their camera with specific optimized settings."
                            Foreground="Black"
                            FontSize="14"
                            TextWrapping="Wrap"
@@ -94,7 +94,7 @@
 
         <!-- Presets List -->
         <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl x:Name="parentControl" ItemsSource="{Binding Presets}">
+            <ItemsControl x:Name="parentControl" ItemsSource="{Binding Presets}" IsEnabled="{Binding CanConnect}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel Orientation="Horizontal" />
@@ -114,7 +114,7 @@
 
                                     <!-- Apply Button -->
                                     <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Content="Apply"
-                                            IsEnabled="{Binding Converter={StaticResource CanConnectConverter}}" 
+                                            CommandParameter="{Binding}"
                                             Margin="10,0,0,0" VerticalAlignment="Center" />
                                 </Grid>
                             </Button>

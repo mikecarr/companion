@@ -1,6 +1,9 @@
 using System;
 using System.Globalization;
+using Avalonia.Controls;
 using Avalonia.Data.Converters;
+using Avalonia.LogicalTree;
+using OpenIPC_Config.ViewModels;
 
 namespace OpenIPC_Config.Converters;
 
@@ -8,15 +11,51 @@ public class CanConnectConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
     {
-        // If the value is a Preset, try to find the CanConnect from the DataContext
-        if (value is Models.Presets.Preset)
+        // Try to get the DataContext from the current view model
+        if (Avalonia.Application.Current?.DataContext is PresetsTabViewModel viewModel)
         {
-            // Attempt to find the ViewModel through the DataContext
-            var dataContext = Avalonia.Application.Current?.DataContext as ViewModels.PresetsTabViewModel;
-            return dataContext?.CanConnect ?? false;
+            return viewModel.CanConnect;
         }
-            
+
+        // Alternative approach: try to find the view model through the logical tree
+        if (Avalonia.Application.Current?.ApplicationLifetime is
+            Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var mainWindow = desktop.MainWindow;
+            if (mainWindow != null)
+            {
+                // Recursively search through logical children
+                var mainViewModel = FindDataContext<PresetsTabViewModel>(mainWindow);
+                if (mainViewModel != null)
+                {
+                    return mainViewModel.CanConnect;
+                }
+            }
+        }
+
+        // Fallback to default
         return false;
+    }
+
+    private T? FindDataContext<T>(ILogical logical) where T : class
+    {
+        // Check the current logical's DataContext
+        if (logical is Control control && control.DataContext is T matchingViewModel)
+        {
+            return matchingViewModel;
+        }
+
+        // Recursively search through logical children
+        foreach (var child in logical.LogicalChildren)
+        {
+            var result = FindDataContext<T>(child);
+            if (result != null)
+            {
+                return result;
+            }
+        }
+
+        return null;
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
