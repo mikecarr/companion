@@ -95,7 +95,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="models:Preset">
-                        <Border Width="300" Background="LightGray" CornerRadius="5" Padding="10" Margin="0,5">
+                        <Border Width="300" Background="LightGray" CornerRadius="5" Padding="10" Margin="5,5">
                             <Button BorderBrush="Transparent" BorderThickness="0" Background="Transparent"  
                                     Click="OnShowPresetDetailsClicked"
                                     ClickMode="Press">
