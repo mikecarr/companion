@@ -2,12 +2,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:OpenIPC_Config.ViewModels"
              xmlns:models="clr-namespace:OpenIPC_Config.Models.Presets"
+             xmlns:i="http://schemas.microsoft.com/expression/blend/2008"
              x:Class="OpenIPC_Config.Views.PresetsTabView"
              x:DataType="vm:PresetsTabViewModel">
-        
-        
-        <Grid RowDefinitions="Auto, Auto, Auto, *" 
-              ColumnDefinitions="*" Margin="10">
+
+    
+    <Grid RowDefinitions="Auto, Auto, Auto, *"
+          ColumnDefinitions="*" Margin="10">
         <!-- Header with Information -->
         <Border Background="#B0B0B0" CornerRadius="10" Padding="10" Margin="10">
             <Grid>
@@ -37,90 +38,84 @@
             <TextBox Width="200"
                      Watermark="🔍Search presets"
                      Text="{Binding SearchQuery, Mode=TwoWay}"/>
-              
 
-            <!-- ~1~ Filter Button @1@ -->
-            <!-- <Button Width="40" Height="40" -->
-            <!--         ToolTip.Tip="Filter Presets" -->
-            <!--         Command="{Binding FilterCommand}"> -->
-            <!--     ~1~ <Image  Stretch="Uniform" /> @1@ -->
-            <!--     <Svg Width="40" Height="40" Path="/Assets/Icons/iconoir_github.svg" /> -->
-            <!-- </Button> -->
-            <!-- -->
-            <!-- -->
-            <!-- ~1~ Fetch Button @1@ -->
-            <!-- <Button Width="80" Height="40" -->
-            <!--         Content="Fetch" -->
-            <!--         Command="{Binding FetchPresetsCommand}" /> -->
-            
-            <Button Width="150" Height="30" Background="DodgerBlue" 
-                    VerticalAlignment="Center" CornerRadius="10" 
+            <!-- Fetch Button -->
+            <Button Width="150" Height="30" Background="DodgerBlue"
+                    VerticalAlignment="Center" CornerRadius="10"
                     Command="{Binding FetchPresetsCommand}">
-                
+
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="5">
-                    
+
                     <!-- SVG Icon -->
-                    <Svg Width="20" Height="20" Path="/Assets/Icons/iconoir_github.svg" /> 
-        
+                    <Svg Width="20" Height="20" Path="avares://OpenIPC_Config/Assets/Icons/iconoir_github.svg" />
+
                     <!-- Text -->
                     <TextBlock Text="Fetch" FontSize="14" Foreground="White" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
         </StackPanel>
-        
+
         <!-- Filter Bar -->
         <StackPanel Orientation="Horizontal" Grid.Row="2" Margin="0,0,0,10" Spacing="10">
             <!-- Categories Dropdown -->
-            <ComboBox Width="165" 
-                      ItemsSource="{Binding Categories}" 
+            <ComboBox Width="165"
+                      ItemsSource="{Binding Categories}"
                       SelectedItem="{Binding SelectedCategory}"
                       PlaceholderText="Select Category" />
 
             <!-- Tags Dropdown -->
-            <ComboBox Width="150" 
-                      ItemsSource="{Binding Tags}" 
+            <ComboBox Width="150"
+                      ItemsSource="{Binding Tags}"
                       SelectedItem="{Binding SelectedTag}"
                       PlaceholderText="Select Tag" />
 
             <!-- Authors Dropdown -->
-            <ComboBox Width="150" 
-                      ItemsSource="{Binding Authors}" 
+            <ComboBox Width="150"
+                      ItemsSource="{Binding Authors}"
                       SelectedItem="{Binding SelectedAuthor}"
                       PlaceholderText="Select Author" />
 
             <!-- Status Dropdown -->
-            <ComboBox Width="150" 
-                      ItemsSource="{Binding StatusOptions}" 
+            <ComboBox Width="150"
+                      ItemsSource="{Binding StatusOptions}"
                       SelectedItem="{Binding SelectedStatus}"
                       PlaceholderText="Select Status" />
+
+            <!-- Clear Filters Button -->
+            <Button Content="Clear Filters" Command="{Binding ClearFiltersCommand}" />
         </StackPanel>
-        
+
         <!-- Presets List -->
         <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="10">
-                <ItemsControl ItemsSource="{Binding Presets}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="models:Preset">
-                            <Border Background="LightGray" CornerRadius="5" Padding="10" Margin="0,5">
+            <ItemsControl ItemsSource="{Binding Presets}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="models:Preset">
+                        <Border Width="300" Background="LightGray" CornerRadius="5" Padding="10" Margin="0,5">
+                            <Button BorderBrush="Transparent" BorderThickness="0" Background="Transparent"  
+                                    Click="OnShowPresetDetailsClicked"
+                                    ClickMode="Press">
                                 <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto">
                                     <!-- Preset Details -->
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding Name}" FontWeight="Bold" FontSize="16" />
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Modified files:" FontWeight="Bold" Margin="0,5,0,0"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Modified files:" FontWeight="Bold" Margin="0,5,0,0" />
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="{Binding FileModificationsSummary}" TextWrapping="Wrap" />
 
                                     <!-- Apply Button -->
                                     <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Content="Apply"
-                                            CommandParameter="{Binding}"
+                                            Click="OnApplyPresetClicked"
                                             Margin="10,0,0,0" VerticalAlignment="Center" />
                                 </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+                            </Button>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </ScrollViewer>
 
     </Grid>
 </UserControl>
-
-

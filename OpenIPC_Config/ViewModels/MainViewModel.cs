@@ -116,8 +116,8 @@ public partial class MainViewModel : ViewModelBase
                 _serviceProvider.GetRequiredService<CameraSettingsTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Telemetry", "avares://OpenIPC_Config/Assets/Icons/iconoir_drag_dark.svg",
                 _serviceProvider.GetRequiredService<TelemetryTabViewModel>(), IsTabsCollapsed));
-            // Tabs.Add(new TabItemViewModel("Presets", "avares://OpenIPC_Config/Assets/Icons/iconoir_presets_dark.svg",
-            //     _serviceProvider.GetRequiredService<PresetsTabViewModel>(), IsTabsCollapsed));
+            Tabs.Add(new TabItemViewModel("Presets", "avares://OpenIPC_Config/Assets/Icons/iconoir_presets_dark.svg",
+                _serviceProvider.GetRequiredService<PresetsTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Setup", "avares://OpenIPC_Config/Assets/Icons/iconoir_settings_dark.svg",
                 _serviceProvider.GetRequiredService<SetupTabViewModel>(), IsTabsCollapsed));
         }
