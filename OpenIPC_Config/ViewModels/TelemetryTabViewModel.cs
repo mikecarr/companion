@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -21,20 +23,28 @@ public partial class TelemetryTabViewModel : ViewModelBase
 {
     #region Private Fields
     private readonly IMessageBoxService _messageBoxService;
+    private readonly IYamlConfigService _yamlConfigService;
+    private readonly Dictionary<string, string> _yamlConfig = new();
+    private readonly IGlobalSettingsService _globalSettingsService;
     #endregion
 
     #region Public Properties
     public bool IsMobile => App.OSType == "Mobile";
     public bool IsEnabledForView => CanConnect && !IsMobile;
+    
+    // Computed property for selective disabling
+
     #endregion
 
     #region Observable Properties
     [ObservableProperty] private bool _canConnect;
+    
     [ObservableProperty] private string _selectedAggregate;
     [ObservableProperty] private string _selectedBaudRate;
     [ObservableProperty] private string _selectedMcsIndex;
     [ObservableProperty] private string _selectedRcChannel;
     [ObservableProperty] private string _selectedRouter;
+    [ObservableProperty] private string _selectedMSPFps;
     [ObservableProperty] private string _selectedSerialPort;
     [ObservableProperty] private string _telemetryContent;
     #endregion
@@ -69,6 +79,11 @@ public partial class TelemetryTabViewModel : ViewModelBase
     /// Available router options
     /// </summary>
     public ObservableCollection<string> Router { get; private set; }
+    /// <summary>
+    /// Available msposd fps options
+    /// </summary>
+    public ObservableCollection<string> MSPFps { get; private set; }
+
     #endregion
 
     #region Commands
@@ -91,10 +106,14 @@ public partial class TelemetryTabViewModel : ViewModelBase
         ILogger logger,
         ISshClientService sshClientService,
         IEventSubscriptionService eventSubscriptionService,
-        IMessageBoxService messageBoxService)
+        IMessageBoxService messageBoxService,
+        IYamlConfigService yamlConfigService,
+        IGlobalSettingsService globalSettingsService)
         : base(logger, sshClientService, eventSubscriptionService)
     {
         _messageBoxService = messageBoxService;
+        _yamlConfigService = yamlConfigService;
+        _globalSettingsService = globalSettingsService;
 
         InitializeCollections();
         InitializeCommands();
@@ -110,7 +129,8 @@ public partial class TelemetryTabViewModel : ViewModelBase
         McsIndex = new ObservableCollection<string> { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
         Aggregate = new ObservableCollection<string> { "0", "1", "2", "4", "6", "8", "10", "12", "14", "15" };
         RC_Channel = new ObservableCollection<string> { "0", "1", "2", "3", "4", "5", "6", "7", "8" };
-        Router = new ObservableCollection<string> { "0", "1", "2" };
+        Router = new ObservableCollection<string> { "mavfwd", "mavlink-routed", "msposd" }; // 0,1,2 telemetry.conf
+        MSPFps = new ObservableCollection<string> { "20", "30","60", "90", "100", "120" }; 
     }
 
     private void InitializeCommands()
@@ -130,7 +150,11 @@ public partial class TelemetryTabViewModel : ViewModelBase
     {
         EventSubscriptionService.Subscribe<TelemetryContentUpdatedEvent, TelemetryContentUpdatedMessage>(
             OnTelemetryContentUpdated);
+        
         EventSubscriptionService.Subscribe<AppMessageEvent, AppMessage>(OnAppMessage);
+        
+        EventSubscriptionService.Subscribe<WfbYamlContentUpdatedEvent, WfbYamlContentUpdatedMessage>(
+            OnWfbYamlContentUpdated);
     }
     #endregion
 
@@ -152,6 +176,25 @@ public partial class TelemetryTabViewModel : ViewModelBase
     }
     #endregion
 
+    #region Control Handlers
+    partial void OnSelectedSerialPortChanged(string value)
+    {
+        Logger.Debug($"SelectedSerialPortChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.TelemetrySerialPort, value.ToString());   
+    }
+    
+    partial void OnSelectedRouterChanged(string value)
+    {
+        Logger.Debug($"SelectedRouterChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.TelemetryRouter, value.ToString());   
+    }
+    partial void OnSelectedMSPFpsChanged(string value)
+    {
+        Logger.Debug($"SelectedMSPFpsChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.TelemetryOsdFps, value.ToString());   
+    }
+    #endregion
+    
     #region Command Handlers
     private async void EnableUART0()
     {
@@ -242,16 +285,52 @@ public partial class TelemetryTabViewModel : ViewModelBase
 
     private async void SaveAndRestartTelemetry()
     {
-        Log.Debug("Saving and restarting telemetry...");
-        TelemetryContent = UpdateTelemetryContent(SelectedSerialPort, SelectedBaudRate, SelectedRouter,
-            SelectedMcsIndex, SelectedAggregate, SelectedRcChannel);
-        await SshClientService.UploadFileStringAsync(DeviceConfig.Instance, OpenIPC.TelemetryConfFileLoc,
-            TelemetryContent);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.TelemetryRestartCommand);
+        if (_globalSettingsService.IsWfbYamlEnabled)
+        {
+            Log.Debug("Saving WFB YAML...");
+            try
+            {
+                var updatedYamlContent = _yamlConfigService.UpdateYaml(_yamlConfig);
+            
+                await SshClientService.UploadFileStringAsync(
+                    DeviceConfig.Instance,
+                    OpenIPC.WfbYamlFileLoc,
+                    updatedYamlContent);
+
+                SshClientService.ExecuteCommandAsync(
+                    DeviceConfig.Instance,
+                    DeviceCommands.WfbRestartCommand);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to update Wfb.yaml configuration: {ExceptionMessage}", ex.Message);
+                return;
+            }
+            
+
+            Logger.Information("wfb.yaml configuration updated and service is restarting.");
+        }
+        else
+        {
+            Log.Debug("Saving and restarting telemetry...");
+            TelemetryContent = UpdateTelemetryContent(SelectedSerialPort, SelectedBaudRate, SelectedRouter,
+                SelectedMcsIndex, SelectedAggregate, SelectedRcChannel);
+            await SshClientService.UploadFileStringAsync(DeviceConfig.Instance, OpenIPC.TelemetryConfFileLoc,
+                TelemetryContent);
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.TelemetryRestartCommand);
+        }
+        
     }
     #endregion
 
     #region Helper Methods
+    
+    private void OnWfbYamlContentUpdated(WfbYamlContentUpdatedMessage message)
+    { 
+        _yamlConfigService.ParseYaml(message.Content, _yamlConfig);
+        ParseWfbYamlContent();
+    }
+    
     /// <summary>
     /// Parses telemetry content and updates corresponding properties
     /// </summary>
@@ -274,6 +353,57 @@ public partial class TelemetryTabViewModel : ViewModelBase
         }
     }
 
+    private void ParseWfbYamlContent()
+    {
+        Debug.WriteLine("ParseWfbYamlContent");
+        UpdateViewModelPropertiesFromYaml();
+    }
+    
+    private void UpdateViewModelPropertiesFromYaml()
+    {
+        if (_yamlConfig.TryGetValue(WfbYaml.TelemetrySerialPort, out var serialPort))
+        {
+            if (SerialPorts?.Contains(serialPort) ?? false)
+            {
+                SelectedSerialPort = serialPort;
+            }
+            else
+            {
+                SerialPorts.Add(serialPort);
+                SelectedSerialPort = serialPort;
+            }
+        }
+        
+        if (_yamlConfig.TryGetValue(WfbYaml.TelemetryRouter, out var router))
+        {
+            if (Router?.Contains(router) ?? false)
+            {
+                SelectedRouter = router;
+            }
+            else
+            {
+                Router.Add(router);
+                SelectedRouter = router;
+            }
+            
+        }
+        
+        if (_yamlConfig.TryGetValue(WfbYaml.TelemetryOsdFps, out var osd_fps))
+        {
+            if (MSPFps?.Contains(osd_fps) ?? false)
+            {
+                SelectedMSPFps = osd_fps;
+            }
+            else
+            {
+                MSPFps.Add(osd_fps);
+                SelectedMSPFps = osd_fps;
+            }
+            
+        }
+
+        
+    }
     /// <summary>
     /// Updates the corresponding property based on the telemetry line key-value pair
     /// </summary>
@@ -359,6 +489,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
         }
     }
 
+
     /// <summary>
     /// Updates telemetry content with new configuration values
     /// </summary>
@@ -385,5 +516,19 @@ public partial class TelemetryTabViewModel : ViewModelBase
             };
         });
     }
+    
+    public void UpdateYamlConfig(string key, string newValue)
+    {
+        if (_yamlConfig.ContainsKey(key))
+            _yamlConfig[key] = newValue;
+        else
+            _yamlConfig.Add(key, newValue);
+
+        if (string.IsNullOrEmpty(newValue))
+            _yamlConfig.Remove(key);
+    }
+    
+    
+    
     #endregion
 }

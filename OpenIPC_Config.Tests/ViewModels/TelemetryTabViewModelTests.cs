@@ -10,6 +10,15 @@ namespace OpenIPC_Config.Tests.ViewModels;
 [TestFixture]
 public class TelemetryTabViewModelTests
 {
+    private Mock<ILogger> _mockLogger;
+    private Mock<ISshClientService> _mockSshClientService;
+    private Mock<IEventSubscriptionService> _mockEventSubscriptionService;
+    private TelemetryTabViewModel _viewModel;
+    private Mock<IMessageBoxService> _mockMessageBoxService;
+    private Mock<IYamlConfigService> _mockYamlConfigService;
+    private Mock<IGlobalSettingsService> _mockGlobalSettingsService;
+
+    
     [SetUp]
     public void SetUp()
     {
@@ -17,23 +26,23 @@ public class TelemetryTabViewModelTests
         _mockSshClientService = new Mock<ISshClientService>();
         _mockEventSubscriptionService = new Mock<IEventSubscriptionService>();
         _mockMessageBoxService = new Mock<IMessageBoxService>();
-
+        _mockYamlConfigService = new Mock<IYamlConfigService>();
+        _mockGlobalSettingsService = new Mock<IGlobalSettingsService>();
+        
+            
         _viewModel = new TelemetryTabViewModel(
             _mockLogger.Object,
             _mockSshClientService.Object,
             _mockEventSubscriptionService.Object,
-            _mockMessageBoxService.Object
+            _mockMessageBoxService.Object,
+            _mockYamlConfigService.Object,
+            _mockGlobalSettingsService.Object
         );
 
         // Initialize default telemetry content
         _viewModel.TelemetryContent = "serial=/dev/ttyS0\nbaud=9600\nrouter=1\nmcs_index=5\naggregate=4\nchannels=3";
     }
 
-    private Mock<ILogger> _mockLogger;
-    private Mock<ISshClientService> _mockSshClientService;
-    private Mock<IEventSubscriptionService> _mockEventSubscriptionService;
-    private TelemetryTabViewModel _viewModel;
-    private Mock<IMessageBoxService> _mockMessageBoxService;
 
 
     [Test]

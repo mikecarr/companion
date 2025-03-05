@@ -326,5 +326,10 @@ namespace OpenIPC_Config.Assets {
             get { return ResourceManager.GetString("AudioEnabledToolTip", resourceCulture); }
         }
 
+        public static string TelemetryMSPFpsToolTip
+        {
+            get { return ResourceManager.GetString("TelemetryMSPFpsToolTip", resourceCulture); }
+        }
+
     }
 }

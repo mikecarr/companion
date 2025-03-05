@@ -1,6 +1,7 @@
 using Moq;
 using OpenIPC_Config.Events;
 using OpenIPC_Config.Models;
+using OpenIPC_Config.Services;
 using OpenIPC_Config.ViewModels;
 using Serilog;
 using Xunit;
@@ -42,6 +43,8 @@ public class WfbTabViewModelTest : ViewModelTestBase
 
 
     private Mock<WfbConfContentUpdatedEvent> _wfbConfContentUpdatedEventMock;
+    private Mock<IYamlConfigService> _mockYamlConfigService;
+    private Mock<IGlobalSettingsService> _mockGlobalSettingsService;    
 
 
     [Test]
@@ -51,7 +54,9 @@ public class WfbTabViewModelTest : ViewModelTestBase
         var viewModel = new WfbTabViewModel(
             LoggerMock.Object,
             SshClientServiceMock.Object,
-            EventSubscriptionServiceMock.Object
+            EventSubscriptionServiceMock.Object,
+            YamlConfigServiceMock.Object,
+            GlobalSettingsServiceMock.Object
         );
 
         var propertyChangedRaised = false;
@@ -80,7 +85,9 @@ public class WfbTabViewModelTest : ViewModelTestBase
         var viewModel = new WfbTabViewModel(
             LoggerMock.Object,
             SshClientServiceMock.Object,
-            EventSubscriptionServiceMock.Object
+            EventSubscriptionServiceMock.Object,
+            YamlConfigServiceMock.Object,
+            GlobalSettingsServiceMock.Object
         );
 
 
@@ -109,7 +116,9 @@ public class WfbTabViewModelTest : ViewModelTestBase
         var viewModel = new WfbTabViewModel(
             LoggerMock.Object,
             SshClientServiceMock.Object,
-            EventSubscriptionServiceMock.Object
+            EventSubscriptionServiceMock.Object,
+            YamlConfigServiceMock.Object,
+            GlobalSettingsServiceMock.Object
         );
 
         // Act

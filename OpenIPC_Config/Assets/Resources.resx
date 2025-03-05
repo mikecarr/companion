@@ -286,4 +286,7 @@ Add OSD SOC Temperature</value>
     <data name="AudioEnabledToolTip" xml:space="preserve">
         <value>Enables or disables audio, works for all ssc30kq and ssc338q devices.</value>
     </data>
+    <data name="TelemetryMSPFpsToolTip" xml:space="preserve">
+        <value>MSP OSD Fps (Frames per second)</value>
+    </data>
 </root>

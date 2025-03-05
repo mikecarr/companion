@@ -42,7 +42,7 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty] private string _networkCardType;
 
     private readonly IServiceProvider _serviceProvider;
-    private readonly GlobalSettingsViewModel _globalSettingsSettingsViewModel;
+    private readonly IGlobalSettingsService _globalSettingsService;
 
     
     [ObservableProperty] private bool _isWaiting;
@@ -53,7 +53,7 @@ public partial class MainViewModel : ViewModelBase
         ISshClientService sshClientService,
         IEventSubscriptionService eventSubscriptionService,
         IServiceProvider serviceProvider,
-        GlobalSettingsViewModel globalSettingsSettingsViewModel)
+        IGlobalSettingsService globalSettingsService)
         : base(logger, sshClientService, eventSubscriptionService)
     {
         LoadSettings();
@@ -65,7 +65,7 @@ public partial class MainViewModel : ViewModelBase
         IsMobile = false;
         _serviceProvider = serviceProvider;
         _appVersionText = GetFormattedAppVersion();
-        _globalSettingsSettingsViewModel = globalSettingsSettingsViewModel;
+        _globalSettingsService = globalSettingsService;
 
         Tabs = new ObservableCollection<TabItemViewModel> { };
         // Subscribe to device type change events
@@ -108,8 +108,6 @@ public partial class MainViewModel : ViewModelBase
 
         if (deviceType == DeviceType.Camera)
         {
-            Tabs.Add(new TabItemViewModel("Firmware", "avares://OpenIPC_Config/Assets/Icons/iconair_firmware_dark.svg",
-                _serviceProvider.GetRequiredService<FirmwareTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("WFB", "avares://OpenIPC_Config/Assets/Icons/iconoir_wifi_dark.svg",
                 _serviceProvider.GetRequiredService<WfbTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Camera", "avares://OpenIPC_Config/Assets/Icons/iconoir_camera_dark.svg",
@@ -120,6 +118,8 @@ public partial class MainViewModel : ViewModelBase
             //     _serviceProvider.GetRequiredService<PresetsTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Setup", "avares://OpenIPC_Config/Assets/Icons/iconoir_settings_dark.svg",
                 _serviceProvider.GetRequiredService<SetupTabViewModel>(), IsTabsCollapsed));
+            Tabs.Add(new TabItemViewModel("Firmware", "avares://OpenIPC_Config/Assets/Icons/iconair_firmware_dark.svg",
+                _serviceProvider.GetRequiredService<FirmwareTabViewModel>(), IsTabsCollapsed));
         }
         else if (deviceType == DeviceType.Radxa)
         {
@@ -615,24 +615,39 @@ public partial class MainViewModel : ViewModelBase
     private async void processCameraFiles()
     {
         // read device to determine configurations
-        await _globalSettingsSettingsViewModel.ReadDevice();
-        Logger.Debug($"IsWfbYamlEnabled = {_globalSettingsSettingsViewModel.IsWfbYamlEnabled}");
+        await _globalSettingsService.ReadDevice();
+        Logger.Debug($"IsWfbYamlEnabled = {_globalSettingsService.IsWfbYamlEnabled}");
 
         // remove when ready
-        _globalSettingsSettingsViewModel.IsWfbYamlEnabled = false;
+        //_globalSettingsSettingsViewModel.IsWfbYamlEnabled = false;
         
-        if (_globalSettingsSettingsViewModel.IsWfbYamlEnabled)
+        if (_globalSettingsService.IsWfbYamlEnabled)
         {
             try
             {
                 // download file wfb.yaml
-                Logger.Debug($"Reading wfb.yaml");
+                Logger.Debug($"Reading new wfb.yaml");
 
                 var wfbContent = await SshClientService.DownloadFileAsync(_deviceConfig, OpenIPC.WfbYamlFileLoc);
 
-                // if (wfbContent != null)
-                //     EventSubscriptionService.Publish<WfbYamlContentUpdatedEvent,
-                //         WfbYamlContentUpdatedMessage>(new WfbYamlContentUpdatedMessage(wfbContent));
+                if (wfbContent != null)
+                {
+                    EventSubscriptionService.Publish<WfbYamlContentUpdatedEvent,
+                        WfbYamlContentUpdatedMessage>(new WfbYamlContentUpdatedMessage(wfbContent));
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.Message);
+            }
+            
+            try
+            {
+                var majesticContent =
+                    await SshClientService.DownloadFileAsync(_deviceConfig, OpenIPC.MajesticFileLoc);
+                // Publish a message to WfbSettingsTabViewModel
+                EventSubscriptionService.Publish<MajesticContentUpdatedEvent,
+                    MajesticContentUpdatedMessage>(new MajesticContentUpdatedMessage(majesticContent));
             }
             catch (Exception e)
             {
