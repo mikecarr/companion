@@ -94,7 +94,8 @@
 
         <!-- Presets List -->
         <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl x:Name="parentControl" ItemsSource="{Binding Presets}" IsEnabled="{Binding CanConnect}">
+            <ItemsControl ItemsSource="{Binding Presets}" 
+                          IsEnabled="{Binding CanConnect}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
                         <WrapPanel Orientation="Horizontal" />
@@ -115,6 +116,7 @@
                                     <!-- Apply Button -->
                                     <Button Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Content="Apply"
                                             CommandParameter="{Binding}"
+                                            Click="OnApplyPresetClicked"
                                             Margin="10,0,0,0" VerticalAlignment="Center" />
                                 </Grid>
                             </Button>
