@@ -16,6 +16,7 @@ using Newtonsoft.Json.Linq;
 using OpenIPC_Config.Logging;
 using OpenIPC_Config.Models;
 using OpenIPC_Config.Services;
+using OpenIPC_Config.Services.Presets;
 using OpenIPC_Config.ViewModels;
 using OpenIPC_Config.Views;
 using Prism.Events;
@@ -263,7 +264,11 @@ public class App : Application
         services.AddTransient<DeviceConfigValidator>();
 
         services.AddSingleton<HttpClient>();
+        // for release info
         services.AddSingleton<IGitHubService, GitHubService>();
+        // for presets
+        services.AddSingleton<IGitHubPresetService, GitHubPresetService>();
+        services.AddSingleton<IPresetService, PresetService>();
 
         // add memory cache
         services.AddMemoryCache();

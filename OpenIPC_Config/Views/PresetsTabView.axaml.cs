@@ -39,30 +39,36 @@ public partial class PresetsTabView : UserControl
         
     }
     
+    // In PresetsTabView.axaml.cs
+    public bool GetCanConnect()
+    {
+        return (DataContext as PresetsTabViewModel)?.CanConnect ?? false;
+    }
+    
     private void OnShowPresetDetailsClicked(object? sender, RoutedEventArgs e)
     {
-        // Get the DataContext of the current view
-        var viewModel = DataContext as PresetsTabViewModel;
-            
         // Get the Preset from the clicked button's DataContext
-        var button = sender as Button;
-        var preset = button?.DataContext as Preset;
+        var preset = (sender as Button)?.DataContext as Preset;
 
-        // Call the method to show preset details
-        viewModel?.ShowPresetDetails(preset);
+        // Get the DataContext of the current view
+        if (DataContext is PresetsTabViewModel viewModel)
+        {
+            // Call the method to show preset details
+            viewModel.ShowPresetDetails(preset);
+        }
     }
 
     private void OnApplyPresetClicked(object? sender, RoutedEventArgs e)
     {
-        // Get the DataContext of the current view
-        var viewModel = DataContext as PresetsTabViewModel;
-            
         // Get the Preset from the clicked button's DataContext
-        var button = sender as Button;
-        var preset = button?.DataContext as Preset;
+        var preset = (sender as Button)?.DataContext as Preset;
 
-        // Call the method to apply preset
-        viewModel?.ApplyPresetAsync(preset);
+        // Get the DataContext of the current view
+        if (DataContext is PresetsTabViewModel viewModel)
+        {
+            // Call the method to apply preset
+            viewModel.ApplyPresetAsync(preset);
+        }
     }
 
     

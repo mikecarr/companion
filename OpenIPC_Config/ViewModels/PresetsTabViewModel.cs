@@ -1,298 +1,352 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Threading;
+using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MsBox.Avalonia;
+using OpenIPC_Config.Events;
 using OpenIPC_Config.Models;
 using OpenIPC_Config.Models.Presets;
 using OpenIPC_Config.Services;
-using Serilog;
-using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
+using OpenIPC_Config.Services.Presets;
 using OpenIPC_Config.Views;
+using Serilog;
 
 namespace OpenIPC_Config.ViewModels;
 
 /// <summary>
 /// ViewModel for managing camera presets, including loading, filtering, and applying presets
 /// </summary>
-public partial class PresetsTabViewModel : ViewModelBase, INotifyPropertyChanged
+public partial class PresetsTabViewModel : ViewModelBase
 {
+    private readonly IGitHubPresetService _gitHubPresetService;
+    private readonly IPresetService _presetService;
+    private readonly HttpClient _httpClient;
     private readonly ILogger _logger;
-    private readonly ISshClientService _sshClientService;
-    private readonly IEventSubscriptionService _eventSubscriptionService;
 
-    #region Fields
-    /// <summary>
-    /// Master collection containing all presets before filtering
-    /// </summary>
-    #endregion
+    #region Observable Properties
+    
+    [ObservableProperty] 
+    private bool _canConnect;
+    
+    [ObservableProperty]
+    private Repository? _selectedRepository;
 
-    #region Properties
-
-    // Collections
-    /// <summary>
-    /// Collection of available preset repositories
-    /// </summary>
-    public ObservableCollection<Repository> Repositories { get; set; } = new();
-
-    /// <summary>
-    /// Collection of filtered presets displayed to the user
-    /// </summary>
-    public ObservableCollection<Preset> Presets { get; set; } = new();
-
-    /// <summary>
-    /// Available preset categories for filtering
-    /// </summary>
-    public ObservableCollection<string> Categories { get; } = new();
-
-    /// <summary>
-    /// Available preset tags for filtering
-    /// </summary>
-    public ObservableCollection<string> Tags { get; } = new();
-
-    /// <summary>
-    /// Available preset authors for filtering
-    /// </summary>
-    public ObservableCollection<string> Authors { get; } = new();
-
-    /// <summary>
-    /// Available preset status options for filtering
-    /// </summary>
-    public ObservableCollection<string> StatusOptions { get; } = new();
-
-    /// <summary>
-    /// Master collection containing all presets before filtering
-    /// </summary>
-    public ObservableCollection<Preset> AllPresets { get; set; } = new();
-
-    // Selected Items
-    public Repository? SelectedRepository { get; set; }
-
+    [ObservableProperty]
     private Preset? _selectedPreset;
 
-    public Preset? SelectedPreset
-    {
-        get => _selectedPreset;
-        set
-        {
-            if (_selectedPreset != value)
-            {
-                _selectedPreset = value;
-                OnPropertyChanged();
-
-            }
-        }
-    }
-
-
+    [ObservableProperty]
     private string? _selectedCategory;
 
-    public string? SelectedCategory
-    {
-        get => _selectedCategory;
-        set
-        {
-            if (_selectedCategory != value)
-            {
-                _selectedCategory = value;
-                OnPropertyChanged();
-                FilterPresets();
-            }
-        }
-    }
-
+    [ObservableProperty]
     private string? _selectedTag;
 
-    public string? SelectedTag
-    {
-        get => _selectedTag;
-        set
-        {
-            if (_selectedTag != value)
-            {
-                _selectedTag = value;
-                OnPropertyChanged();
-                FilterPresets();
-            }
-        }
-    }
-
+    [ObservableProperty]
     private string? _selectedAuthor;
 
-    public string? SelectedAuthor
-    {
-        get => _selectedAuthor;
-        set
-        {
-            if (_selectedAuthor != value)
-            {
-                _selectedAuthor = value;
-                OnPropertyChanged();
-                FilterPresets();
-            }
-        }
-    }
-
+    [ObservableProperty]
     private string? _selectedStatus;
 
-    public string? SelectedStatus
-    {
-        get => _selectedStatus;
-        set
-        {
-            if (_selectedStatus != value)
-            {
-                if (_selectedStatus != value)
-                {
-                    _selectedStatus = value;
-                    OnPropertyChanged();
-                    FilterPresets();
-                }
-            }
-        }
-    }
-
+    [ObservableProperty]
     private string? _searchQuery;
 
-    public string? SearchQuery
-    {
-        get => _searchQuery;
-        set
-        {
-            if (_searchQuery != value)
-            {
-                _searchQuery = value;
-                OnPropertyChanged();
-                FilterPresets();
-            }
-        }
-    }
-
+    [ObservableProperty]
     private string? _newRepositoryUrl;
 
-    /// <summary>
-    /// URL for adding a new repository
-    /// </summary>
-    public string? NewRepositoryUrl
-    {
-        get => _newRepositoryUrl;
-        set
-        {
-            if (_newRepositoryUrl != value)
-            {
-                _newRepositoryUrl = value;
-                OnPropertyChanged();
-            }
-        }
-    }
+    [ObservableProperty]
+    private string? _logMessage;
 
-    /// <summary>
-    /// Message displayed in the UI log
-    /// </summary>
-    public string? LogMessage { get; set; }
+    [ObservableProperty]
+    private bool _isApplyingPreset;
+    
+    [ObservableProperty]
+    private bool _isLoading;
+    #endregion
 
-    // Commands
-    public ICommand AddRepositoryCommand { get; private set; } = null!;
+    #region Collections
+    public ObservableCollection<Repository> Repositories { get; } = new();
+    public ObservableCollection<Preset> Presets { get; } = new();
+    public ObservableCollection<string> Categories { get; } = new();
+    public ObservableCollection<string> Tags { get; } = new();
+    public ObservableCollection<string> Authors { get; } = new();
+    public ObservableCollection<string> StatusOptions { get; } = new();
+    public ObservableCollection<Preset> AllPresets { get; } = new();
+    #endregion
 
-    public ICommand RemoveRepositoryCommand { get; private set; } = null!;
-
-    public ICommand FetchPresetsCommand { get; private set; } = null!;
-
-    public ICommand ApplyPresetCommand { get; private set; } = null!;
-
-    public ICommand FilterCommand { get; private set; } = null!;
-    public ICommand ClearFiltersCommand { get; private set; } = null!;
-    public ICommand ShowPresetDetailsCommand { get; private set; } = null!;
-
-
+    #region Commands
+    public ICommand AddRepositoryCommand { get; }
+    public ICommand RemoveRepositoryCommand { get; }
+    public ICommand FetchPresetsCommand { get; }
+    public ICommand ApplyPresetCommand { get; }
+    public ICommand FilterCommand { get; }
+    public ICommand ClearFiltersCommand { get; }
+    public ICommand ShowPresetDetailsCommand { get; }
+    public ICommand SyncRepositoryCommand { get; }
+    public ICommand CreatePresetCommand { get; }
     #endregion
 
     #region Constructor
-
-    /// <summary>
-    /// Initializes a new instance of the PresetsTabViewModel
-    /// </summary>
-    public PresetsTabViewModel(ILogger logger, ISshClientService sshClientService,
-        IEventSubscriptionService eventSubscriptionService)
+    public PresetsTabViewModel(
+        ILogger logger, 
+        ISshClientService sshClientService,
+        IEventSubscriptionService eventSubscriptionService,
+        IGitHubPresetService gitHubPresetService,
+        IPresetService presetService)
         : base(logger, sshClientService, eventSubscriptionService)
     {
-        InitializeCommands();
-        Presets = new ObservableCollection<Preset>();
-        AllPresets = new ObservableCollection<Preset>();
-
+        _gitHubPresetService = gitHubPresetService;
+        _presetService = presetService;
         _logger = logger;
-        _sshClientService = sshClientService;
-        _eventSubscriptionService = eventSubscriptionService;
-        LoadPresets();
-    }
+        _httpClient = new HttpClient();
+        
+        SubscribeToEvents();
 
-    #endregion
-
-    #region Command Initialization
-
-    /// <summary>
-    /// Initializes all commands used in the ViewModel
-    /// </summary>
-    private void InitializeCommands()
-    {
-        AddRepositoryCommand = new RelayCommand(async () => await AddRepositoryAsync(),
+        // Initialize commands
+        AddRepositoryCommand = new RelayCommand(AddRepository, 
             () => !string.IsNullOrWhiteSpace(NewRepositoryUrl));
-        RemoveRepositoryCommand = new RelayCommand(RemoveSelectedRepository,
-            () => SelectedRepository != null);
-        FetchPresetsCommand = new RelayCommand(FetchPresetsAsync);
-        ApplyPresetCommand = new RelayCommand<Preset>(async preset => await ApplyPresetAsync(preset));
+        RemoveRepositoryCommand = new RelayCommand<Repository>(RemoveRepository);
+        FetchPresetsCommand = new RelayCommand(async () => await FetchPresetsAsync());
+        ApplyPresetCommand = new RelayCommand<Preset>(ApplyPresetAsync, CanApplyPreset);
         FilterCommand = new RelayCommand(FilterPresets);
         ClearFiltersCommand = new RelayCommand(ClearFilters);
         ShowPresetDetailsCommand = new RelayCommand<Preset>(ShowPresetDetails);
+        SyncRepositoryCommand = new RelayCommand<Repository>(SyncRepository);
+        CreatePresetCommand = new RelayCommand(async () => await CreatePresetAsync());
+        
+        LoadInitialRepositories();
+        
+        // Use async method to load presets
+        _ = LoadPresetsAsync();
+    }
+    #endregion
+    
+    #region Initialization Methods
+    private void SubscribeToEvents()
+    {
+        EventSubscriptionService.Subscribe<AppMessageEvent, AppMessage>(OnAppMessage);
+    }
+    #endregion
+    
+    #region Event Handlers
+    private void OnAppMessage(AppMessage message)
+    {
+        // Ensure update happens on UI thread
+        Dispatcher.UIThread.Invoke(() =>
+        {
+            // Force update even if the value seems the same
+            if (CanConnect != message.CanConnect)
+            {
+                CanConnect = message.CanConnect;
+            }
+        
+            // Explicitly trigger property changed notification
+            OnPropertyChanged(nameof(CanConnect));
+        });
+    }
+    #endregion
+
+    #region Property Changed Partial Methods
+    partial void OnSelectedCategoryChanged(string? value)
+    {
+        FilterPresets();
     }
 
+    partial void OnSelectedTagChanged(string? value)
+    {
+        FilterPresets();
+    }
+
+    partial void OnSelectedAuthorChanged(string? value)
+    {
+        FilterPresets();
+    }
+
+    partial void OnSelectedStatusChanged(string? value)
+    {
+        FilterPresets();
+    }
+
+    partial void OnSearchQueryChanged(string? value)
+    {
+        FilterPresets();
+    }
+
+    partial void OnSelectedPresetChanged(Preset? value)
+    {
+        if (value != null)
+        {
+            // Load the preset files to ensure we have the latest content
+            _ = LoadPresetFilesAsync(value);
+        }
+    }
     #endregion
 
     #region Data Loading Methods
-
+    
+    
     /// <summary>
-    /// Loads presets from the filesystem and initializes them
+    /// Gets a platform-independent temporary directory path
     /// </summary>
-    private void LoadPresets()
+    private string GetTempPresetsDirectory(string repositoryName)
+    {
+        // Use the system's temp directory as a base
+        string baseDir = Path.Combine(Path.GetTempPath(), "OpenIPC_Config", "Presets", repositoryName);
+        
+        // Create the directory if it doesn't exist
+        if (!Directory.Exists(baseDir))
+        {
+            Directory.CreateDirectory(baseDir);
+        }
+        
+        return baseDir;
+    }
+
+    private async Task LoadPresetsAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            UpdateUIMessage("Loading presets...");
+            
+            // Clear existing presets
+            AllPresets.Clear();
+            Presets.Clear();
+
+            // First, load local presets
+            // TODO: maybe do this later
+            //await LoadLocalPresetsAsync();
+
+            // Then, load presets from active repositories
+            await LoadRemotePresetsAsync();
+
+            _logger.Information($"Loaded {AllPresets.Count} presets in total.");
+            LoadDropdownValues();
+            FilterPresets();
+            
+            UpdateUIMessage($"Loaded {AllPresets.Count} presets.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error loading presets: {ex.Message}");
+            UpdateUIMessage($"Error loading presets: {ex.Message}");
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task LoadPresetFilesAsync(Preset preset)
+    {
+        try
+        {
+            // Ensure the preset files are loaded
+            await _presetService.LoadPresetFilesAsync(preset);
+            
+            // Force UI update by raising property changed for the preset
+            OnPropertyChanged(nameof(SelectedPreset));
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Error loading preset files: {ex.Message}");
+        }
+    }
+
+    private async Task LoadLocalPresetsAsync()
     {
         var presetDirectory = Path.Join(OpenIPC.GetBinariesPath(), "presets");
         if (!Directory.Exists(presetDirectory))
         {
-            Logger.Warning("Preset directory not found.");
+            _logger.Warning("Local preset directory not found.");
             return;
         }
-
-        AllPresets.Clear(); // Important: Clear the master list
-        Presets.Clear();
 
         foreach (var presetFolder in Directory.GetDirectories(presetDirectory))
         {
             var presetConfigPath = Path.Combine(presetFolder, "preset-config.yaml");
             if (!File.Exists(presetConfigPath))
             {
-                Logger.Warning($"Skipping preset folder {presetFolder}: preset-config.yaml missing.");
+                _logger.Warning($"Skipping preset folder {presetFolder}: preset-config.yaml missing.");
                 continue;
             }
 
-            var preset = Preset.LoadFromFile(presetConfigPath);
-            preset.InitializeFileModifications();
-            AllPresets.Add(preset); // Add to the master list
+            try
+            {
+                var preset = Preset.LoadFromFile(presetConfigPath);
+                
+                // Ensure the preset files are loaded
+                await _presetService.LoadPresetFilesAsync(preset);
+                
+                // Avoid duplicates
+                if (!AllPresets.Any(p => p.Name == preset.Name && p.FolderPath == preset.FolderPath))
+                {
+                    AllPresets.Add(preset);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Error loading local preset from {presetConfigPath}: {ex.Message}");
+            }
         }
 
-        Logger.Information("Presets loaded successfully.");
-        LoadDropdownValues();
-        FilterPresets(); // Call this AFTER presets have been fetched/added to the AllPresets list
+        _logger.Information($"Loaded {AllPresets.Count} local presets.");
     }
 
-    /// <summary>
-    /// Populates dropdown lists with unique values from loaded presets
-    /// </summary>
+    private async Task LoadRemotePresetsAsync()
+    {
+        foreach (var repository in Repositories.Where(r => r.IsActive))
+        {
+            try
+            {
+                // Define temp presets directory for this repository
+                var localRepoPresetsDir = GetTempPresetsDirectory(repository.RepositoryName);
+                _logger.Information($"Using temp directory for {repository.Name}: {localRepoPresetsDir}");
+
+                // Sync presets from the repository
+                var downloadedPresets = await _gitHubPresetService.SyncRepositoryPresetsAsync(
+                    repository, 
+                    localRepoPresetsDir
+                );
+
+                // Load the newly downloaded presets
+                foreach (var presetPath in downloadedPresets)
+                {
+                    try
+                    {
+                        var preset = Preset.LoadFromFile(presetPath);
+                        
+                        // Ensure the preset files are loaded
+                        await _presetService.LoadPresetFilesAsync(preset);
+                        
+                        // Avoid duplicates
+                        if (!AllPresets.Any(p => p.Name == preset.Name && p.FolderPath == preset.FolderPath))
+                        {
+                            AllPresets.Add(preset);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"Error loading remote preset from {presetPath}: {ex.Message}");
+                    }
+                }
+
+                _logger.Information($"Loaded {downloadedPresets.Count} presets from {repository.Name}");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Error syncing repository {repository.Name}: {ex.Message}");
+            }
+        }
+    }
+
     private void LoadDropdownValues()
     {
         Categories.Clear();
@@ -306,7 +360,7 @@ public partial class PresetsTabViewModel : ViewModelBase, INotifyPropertyChanged
         Authors.Add("");
         StatusOptions.Add("");
 
-        foreach (var preset in AllPresets) // Use AllPresets here!
+        foreach (var preset in AllPresets)
         {
             if (!string.IsNullOrEmpty(preset.Category) && !Categories.Contains(preset.Category))
                 Categories.Add(preset.Category);
@@ -325,65 +379,286 @@ public partial class PresetsTabViewModel : ViewModelBase, INotifyPropertyChanged
         }
     }
 
+    private void LoadInitialRepositories()
+    {
+        if (Repositories.Count == 0)
+        {
+            var repo = Repository.FromUrl("https://github.com/mikecarr/config-presets");
+            repo.Branch = "master";
+            repo.Description = "Official OpenIPC presets repository";
+            Repositories.Add(repo);
+        }
+    }
     #endregion
 
-    #region Command Handlers
-
-    /// <summary>
-    /// Adds a new repository using the provided URL
-    /// </summary>
-    private async Task AddRepositoryAsync()
+    #region Repository Management Methods
+    private void AddRepository()
     {
         if (string.IsNullOrWhiteSpace(NewRepositoryUrl))
             return;
 
-        var repository = new Repository { Name = "New Repo", Url = NewRepositoryUrl };
-        Repositories.Add(repository);
-        NewRepositoryUrl = string.Empty;
+        try
+        {
+            var newRepository = Repository.FromUrl(NewRepositoryUrl);
+            Repositories.Add(newRepository);
+            NewRepositoryUrl = string.Empty;
 
-        LogMessage = $"Repository '{repository.Name}' added.";
+            _logger.Information($"Added repository: {newRepository.Name}");
+            UpdateUIMessage($"Added repository: {newRepository.Name}");
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning($"Error adding repository: {ex.Message}");
+            UpdateUIMessage($"Failed to add repository: {ex.Message}");
+        }
     }
 
-    /// <summary>
-    /// Removes the currently selected repository
-    /// </summary>
-    private void RemoveSelectedRepository()
+    private void RemoveRepository(Repository? repository)
     {
-        if (SelectedRepository == null)
+        if (repository == null)
             return;
 
-        Repositories.Remove(SelectedRepository);
-        LogMessage = $"Repository '{SelectedRepository.Name}' removed.";
+        Repositories.Remove(repository);
+        _logger.Information($"Removed repository: {repository.Name}");
+        UpdateUIMessage($"Removed repository: {repository.Name}");
     }
 
-    /// <summary>
-    /// Fetches presets from repositories and updates the UI
-    /// </summary>
-    private async void FetchPresetsAsync()
+    private async void SyncRepository(Repository? repository)
     {
-        GenerateRandomPresets(10);
-        LoadDropdownValues();
-        FilterPresets(); // Call this AFTER presets have been fetched/added to the AllPresets list
+        if (repository == null || !repository.IsActive)
+            return;
+
+        try
+        {
+            IsLoading = true;
+            UpdateUIMessage($"Syncing repository {repository.Name}...");
+
+            var localPresetsDir = GetTempPresetsDirectory(repository.RepositoryName);
+            _logger.Information($"Using temp directory for {repository.Name}: {localPresetsDir}");
+
+            var downloadedPresets = await _gitHubPresetService.SyncRepositoryPresetsAsync(
+                repository, 
+                localPresetsDir
+            );
+
+            await LoadPresetsAsync();
+
+            var message = $"Synced {downloadedPresets.Count} presets from {repository.Name}";
+            _logger.Information(message);
+            UpdateUIMessage(message);
+        }
+        catch (Exception ex)
+        {
+            var message = $"Error syncing repository {repository.Name}: {ex.Message}";
+            _logger.Error(message);
+            UpdateUIMessage(message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
-    /// <summary>
-    /// Applies the selected preset to the camera
-    /// </summary>
-    public async Task ApplyPresetAsync(Preset preset)
+    private async Task FetchPresetsAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            UpdateUIMessage("Fetching presets...");
+
+            foreach (var repository in Repositories.Where(r => r.IsActive))
+            {
+                // Use the repository's built-in methods for fetching presets
+                var presets = await _gitHubPresetService.FetchPresetFilesAsync(repository);
+                
+                // Process fetched presets
+                foreach (var preset in presets)
+                {
+                    _logger.Information($"Found preset: {preset.Name} at {preset.Path}");
+                }
+            }
+
+            await LoadPresetsAsync();
+            var message = "Presets fetched successfully.";
+            UpdateUIMessage(message);
+        }
+        catch (Exception ex)
+        {
+            var message = $"Error fetching presets: {ex.Message}";
+            _logger.Error(message);
+            UpdateUIMessage(message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+    #endregion
+
+    #region Preset Management Methods
+    private bool CanApplyPreset(Preset? preset)
+    {
+        return preset != null && !IsApplyingPreset && !IsLoading;
+    }
+
+    public async void ApplyPresetAsync(Preset? preset)
     {
         if (preset == null) return;
-        LogMessage = $"Applied preset '{preset.Name}'.";
+
+        try
+        {
+            IsApplyingPreset = true;
+            UpdateUIMessage($"Applying preset '{preset.Name}'...");
+
+            // Use the PresetService to apply the preset
+            var result = await _presetService.ApplyPresetAsync(preset);
+            
+            if (result)
+            {
+                var message = $"Successfully applied preset '{preset.Name}'";
+                _logger.Information(message);
+                UpdateUIMessage(message);
+                
+                // Show a success message to the user
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await MessageBoxManager.GetMessageBoxStandard(
+                        "Success", 
+                        $"Successfully applied preset '{preset.Name}'").ShowAsync();
+                });
+            }
+            else
+            {
+                var message = $"Failed to apply preset '{preset.Name}'";
+                _logger.Error(message);
+                UpdateUIMessage(message);
+                
+                // Show an error message to the user
+                await Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    await MessageBoxManager.GetMessageBoxStandard(
+                        "Error", 
+                        $"Failed to apply preset '{preset.Name}'. Check the log for details.").ShowAsync();
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            var message = $"Error applying preset: {ex.Message}";
+            _logger.Error(message);
+            UpdateUIMessage(message);
+            
+            // Show an error message to the user
+            await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                await MessageBoxManager.GetMessageBoxStandard(
+                    "Error", 
+                    $"Error applying preset: {ex.Message}").ShowAsync();
+            });
+        }
+        finally
+        {
+            IsApplyingPreset = false;
+        }
     }
 
-    /// <summary>
-    /// Filters presets based on selected criteria
-    /// </summary>
+    private async Task CreatePresetAsync()
+    {
+        try
+        {
+            // Show a dialog to get preset details
+            var dialog = new PresetDetailsDialog();
+            if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var result = await dialog.ShowDialog<PresetDetailsResult>(desktop.MainWindow);
+                
+                if (result != null && !string.IsNullOrEmpty(result.Name))
+                {
+                    UpdateUIMessage($"Creating preset '{result.Name}'...");
+                    
+                    // Use the PresetService to create a preset from current settings
+                    var preset = await _presetService.CreatePresetFromCurrentConfigAsync(
+                        result.Name, 
+                        result.Category, 
+                        result.Description);
+                    
+                    if (preset != null)
+                    {
+                        // Save the preset to a local file
+                        var presetDirectory = Path.Combine(
+                            OpenIPC.GetBinariesPath(), 
+                            "presets",
+                            "custom");
+                        
+                        if (!Directory.Exists(presetDirectory))
+                        {
+                            Directory.CreateDirectory(presetDirectory);
+                        }
+                        
+                        var presetPath = Path.Combine(
+                            presetDirectory,
+                            $"{result.Name.Replace(' ', '_')}.yaml");
+                        
+                        // Save the preset
+                        preset.SaveToFile(presetPath);
+                        
+                        UpdateUIMessage($"Created preset '{result.Name}'");
+                        
+                        // Refresh the preset list
+                        await LoadPresetsAsync();
+                    }
+                    else
+                    {
+                        UpdateUIMessage("Failed to create preset");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            var message = $"Error creating preset: {ex.Message}";
+            _logger.Error(message);
+            UpdateUIMessage(message);
+        }
+    }
+
+    public void ShowPresetDetails(Preset? preset)
+    {
+        if (preset is null)
+            return;
+
+        var presetDetailsViewModel = new PresetDetailsViewModel
+        {
+            Preset = preset
+        };
+
+        var presetDetailsView = new PresetDetailsView 
+        { 
+            DataContext = presetDetailsViewModel 
+        };
+
+        if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var window = new Window
+            {
+                Title = "Preset Details",
+                Content = presetDetailsView,
+                Width = 600,
+                Height = 400
+            };
+
+            window.Show(desktop.MainWindow);
+        }
+    }
+
     private void FilterPresets()
     {
         var filteredPresets = AllPresets.AsEnumerable();
 
         if (!string.IsNullOrEmpty(SearchQuery))
-            filteredPresets = filteredPresets.Where(p => p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
+            filteredPresets = filteredPresets.Where(p => 
+                p.Name.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(SearchQuery, StringComparison.OrdinalIgnoreCase));
 
         if (!string.IsNullOrEmpty(SelectedCategory))
             filteredPresets = filteredPresets.Where(p => p.Category == SelectedCategory);
@@ -397,117 +672,108 @@ public partial class PresetsTabViewModel : ViewModelBase, INotifyPropertyChanged
         if (!string.IsNullOrEmpty(SelectedStatus))
             filteredPresets = filteredPresets.Where(p => p.Status == SelectedStatus);
 
-        //Update Presets collection
         Presets.Clear();
         foreach (var preset in filteredPresets)
             Presets.Add(preset);
     }
-        private void ClearFilters()
-        {
-            SearchQuery = null;
-            SelectedCategory = null;
-            SelectedTag = null;
-            SelectedAuthor = null;
-            SelectedStatus = null;
 
-            FilterPresets();
-        }
-
-       public void ShowPresetDetails(Preset? preset)
-        {
-            if (preset is null)
-                return;
-
-            PresetDetailsViewModel presetDetailsViewModel = new();
-            presetDetailsViewModel.Preset = preset;
-            PresetDetailsView presetDetailsView = new PresetDetailsView { DataContext = presetDetailsViewModel };
-
-            if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-            {
-                Window window = new Window
-                {
-                    Title = "Preset Details",
-                    Content = presetDetailsView,
-                    Width = 600,
-                    Height = 400
-                };
-
-                window.Show(desktop.MainWindow);
-            }
-        }
-
-    #endregion
-
-    #region Helper Methods
-
-    /// <summary>
-    /// Generates random presets for testing purposes
-    /// </summary>
-    /// <param name="count">Number of random presets to generate</param>
-    public void GenerateRandomPresets(int count)
+    private void ClearFilters()
     {
-        var random = new Random();
-        var categories = new[] { "Long Range", "Freestyle", "Racing", "Cinematic" };
-        var authors = new[] { "John Doe", "Jane Smith", "Alex Johnson", "Emily Davis" };
-        var statuses = new[] { "Community", "Official", "Experimental" };
-        var tagsList = new[] { "Tag1", "Tag2", "Tag3", "Tag4", "Tag5" };
+        SelectedCategory = null;
+        SelectedTag = null;
+        SelectedAuthor = null;
+        SelectedStatus = null;
+        SearchQuery = null;
 
-        AllPresets.Clear();
-        Presets.Clear(); // Added to Clear the presets
-
-        for (int i = 0; i < count; i++)
-        {
-            var preset = new Preset
-            {
-                Name = $"Preset_{random.Next(1000, 9999)}",
-                Category = categories[random.Next(categories.Length)],
-                Tags = new ObservableCollection<string>
-                {
-                    tagsList[random.Next(tagsList.Length)],
-                    tagsList[random.Next(tagsList.Length)]
-                },
-                Author = authors[random.Next(authors.Length)],
-                Status = statuses[random.Next(statuses.Length)],
-                Description = $"Generated preset {i + 1} for testing.",
-                FileModifications = new ObservableCollection<FileModification>
-                {
-                    new()
-                    {
-                        FileName = "wfb.yaml",
-                        Changes = new ObservableCollection<KeyValuePair<string, string>>
-                        {
-                            new("wireless.txpower", random.Next(1, 30).ToString()),
-                            new("wireless.channel", random.Next(36, 165).ToString())
-                        }
-                    },
-                    new()
-                    {
-                        FileName = "Majestic.yaml",
-                        Changes = new ObservableCollection<KeyValuePair<string, string>>
-                        {
-                            new("fpv.enabled", random.Next(2) == 0 ? "true" : "false"),
-                            new("system.LogLevel", random.Next(2) == 0 ? "debug" : "info")
-                        }
-                    }
-                }
-            };
-
-            AllPresets.Add(preset);
-        }
-
-        FilterPresets(); // Call this AFTER presets have been generated/added to the AllPresets list
+        FilterPresets();
     }
-
     #endregion
 
-    #region PropertyChanged
-
-    public event PropertyChangedEventHandler? PropertyChanged;
-
-    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    #region Utility Methods
+    private void UpdateUIMessage(string message)
     {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        LogMessage = message;
     }
-
     #endregion
+}
+
+/// <summary>
+/// Dialog for creating a new preset
+/// </summary>
+public class PresetDetailsDialog : Window
+{
+    private readonly TextBox _nameTextBox;
+    private readonly TextBox _categoryTextBox;
+    private readonly TextBox _descriptionTextBox;
+    
+    public PresetDetailsDialog()
+    {
+        Title = "Create New Preset";
+        Width = 400;
+        Height = 300;
+        
+        var panel = new StackPanel
+        {
+            Margin = new Avalonia.Thickness(10)
+        };
+        
+        panel.Children.Add(new TextBlock { Text = "Name:" });
+        _nameTextBox = new TextBox { Margin = new Avalonia.Thickness(0, 0, 0, 10) };
+        panel.Children.Add(_nameTextBox);
+        
+        panel.Children.Add(new TextBlock { Text = "Category:" });
+        _categoryTextBox = new TextBox { Margin = new Avalonia.Thickness(0, 0, 0, 10) };
+        panel.Children.Add(_categoryTextBox);
+        
+        panel.Children.Add(new TextBlock { Text = "Description:" });
+        _descriptionTextBox = new TextBox 
+        { 
+            Margin = new Avalonia.Thickness(0, 0, 0, 10),
+            Height = 60,
+            AcceptsReturn = true
+        };
+        panel.Children.Add(_descriptionTextBox);
+        
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right
+        };
+        
+        var saveButton = new Button
+        {
+            Content = "Save",
+            Width = 80,
+            Margin = new Avalonia.Thickness(0, 0, 10, 0)
+        };
+        saveButton.Click += (s, e) => Close(new PresetDetailsResult
+        {
+            Name = _nameTextBox.Text,
+            Category = _categoryTextBox.Text,
+            Description = _descriptionTextBox.Text
+        });
+        
+        var cancelButton = new Button
+        {
+            Content = "Cancel",
+            Width = 80
+        };
+        cancelButton.Click += (s, e) => Close(null);
+        
+        buttonPanel.Children.Add(saveButton);
+        buttonPanel.Children.Add(cancelButton);
+        panel.Children.Add(buttonPanel);
+        
+        Content = panel;
+    }
+}
+
+/// <summary>
+/// Result from the preset details dialog
+/// </summary>
+public class PresetDetailsResult
+{
+    public string Name { get; set; }
+    public string Category { get; set; }
+    public string Description { get; set; }
 }
