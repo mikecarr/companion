@@ -10,6 +10,7 @@
         <!-- For Preview Purposes, You Can Instantiate a Dummy ViewModel -->
         <vm:PresetDetailsViewModel />
     </Design.DataContext>
+    <ScrollViewer>
     <Border Padding="10">
         <StackPanel Spacing="5">
             <TextBlock Text="{Binding Preset.Name, StringFormat='Name: {0}'}" FontWeight="Bold" FontSize="16" />
@@ -43,4 +44,5 @@
             </ItemsControl>
         </StackPanel>
     </Border>
+    </ScrollViewer>
 </UserControl>
