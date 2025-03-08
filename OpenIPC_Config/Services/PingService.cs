@@ -48,7 +48,7 @@ public class PingService
     public async Task<PingReply> SendPingAsync(string ipAddress, int timeout)
     {
         // Log which IP is being pinged
-        _logger.Debug($"Attempting to ping IP: {ipAddress}");
+        _logger.Verbose($"Attempting to ping IP: {ipAddress}");
         
         if (await _pingSemaphore.WaitAsync(timeout))
         {
