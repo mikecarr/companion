@@ -47,8 +47,9 @@
                      Text="{Binding SearchQuery, Mode=TwoWay}"/>
 
             <!-- Fetch Button -->
-            <Button Width="150" Height="30" Background="DodgerBlue"
+            <Button Width="150" Height="30" Background="{StaticResource OpenIPCBlueBrush}"
                     VerticalAlignment="Center" CornerRadius="10"
+                    IsEnabled="{Binding CanConnect}"
                     Command="{Binding FetchPresetsCommand}">
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="5">
@@ -57,7 +58,25 @@
                     <Svg Width="20" Height="20" Path="avares://OpenIPC_Config/Assets/Icons/iconoir_github.svg" />
 
                     <!-- Text -->
-                    <TextBlock Text="Fetch" FontSize="14" Foreground="White" VerticalAlignment="Center" />
+                    <TextBlock Text="Update" FontSize="14" Foreground="White" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+            
+            <!-- Add Button -->
+            <Button Width="150" Height="30" Background="{StaticResource OpenIPCBlueBrush}"
+                    VerticalAlignment="Center" CornerRadius="10"
+                    IsEnabled="{Binding CanConnect}"
+                    Command="{Binding AddRepositoryCommand}">
+            
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" Spacing="5">
+            
+                    <!-- SVG Icon -->
+                    <!-- <Svg Width="20" Height="20" Path="avares://OpenIPC_Config/Assets/Icons/iconoir_github.svg" /> -->
+            
+                    <!-- Text -->
+                    <TextBlock Text="Add Repository" FontSize="14" Foreground="White" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
         </StackPanel>

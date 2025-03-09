@@ -324,6 +324,9 @@ public class PresetService : IPresetService
                 case "wfb.conf":
                     return ApplyChangesToWfbConf(fileContent, changes);
                 
+                case "telemetry.conf":
+                    return ApplyChangesToWfbConf(fileContent, changes);
+                
                 case "wfb.yaml":
                     return ApplyChangesToYaml(fileContent, changes);
                     

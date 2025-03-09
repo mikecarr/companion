@@ -110,8 +110,11 @@ public partial class PresetsTabViewModel : ViewModelBase
         SubscribeToEvents();
 
         // Initialize commands
-        AddRepositoryCommand = new RelayCommand(AddRepository, 
-            () => !string.IsNullOrWhiteSpace(NewRepositoryUrl));
+        // AddRepositoryCommand = new RelayCommand(AddRepository, 
+        //     () => !string.IsNullOrWhiteSpace(NewRepositoryUrl));
+        
+        AddRepositoryCommand = new RelayCommand(async () => await AddRepository());
+        
         RemoveRepositoryCommand = new RelayCommand<Repository>(RemoveRepository);
         FetchPresetsCommand = new RelayCommand(async () => await FetchPresetsAsync());
         ApplyPresetCommand = new RelayCommand<Preset>(ApplyPresetAsync, CanApplyPreset);
@@ -119,7 +122,8 @@ public partial class PresetsTabViewModel : ViewModelBase
         ClearFiltersCommand = new RelayCommand(ClearFilters);
         ShowPresetDetailsCommand = new RelayCommand<Preset>(ShowPresetDetails);
         SyncRepositoryCommand = new RelayCommand<Repository>(SyncRepository);
-        CreatePresetCommand = new RelayCommand(async () => await CreatePresetAsync());
+        
+        // CreatePresetCommand = new RelayCommand(async () => await CreatePresetAsync());
         
         LoadInitialRepositories();
         
@@ -392,8 +396,33 @@ public partial class PresetsTabViewModel : ViewModelBase
     #endregion
 
     #region Repository Management Methods
-    private void AddRepository()
+    private async Task AddRepository()
     {
+        // Show a dialog to get preset details
+
+        var presetAddRepoViewModel = new PresetsAddRepoViewModel();
+        {
+            presetAddRepoViewModel.RepoUrl = NewRepositoryUrl;
+        };
+
+        var presetDetailsView = new PresetsAddRepoView(); 
+        { 
+            //DataContext = presetAddRepoViewModel 
+        };
+
+        if (Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            var window = new Window
+            {
+                Title = "Add Repo",
+                Content = presetDetailsView,
+                Width = 600,
+                Height = 300
+            };
+
+            window.Show(desktop.MainWindow);
+        }
+        
         if (string.IsNullOrWhiteSpace(NewRepositoryUrl))
             return;
 
@@ -644,7 +673,7 @@ public partial class PresetsTabViewModel : ViewModelBase
                 Title = "Preset Details",
                 Content = presetDetailsView,
                 Width = 600,
-                Height = 400
+                Height = 600
             };
 
             window.Show(desktop.MainWindow);
