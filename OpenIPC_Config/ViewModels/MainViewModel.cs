@@ -215,23 +215,23 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnIpAddressChanged(string value)
     {
-        Logger.Debug($"IP Address changed to: {value}");
+        Logger.Verbose($"IP Address changed to: {value}");
         if (!string.IsNullOrEmpty(value))
         {
             if (Utilities.IsValidIpAddress(value))
             {
-                Logger.Debug($"Starting ping timer for valid IP: {value}");
+                Logger.Verbose($"Starting ping timer for valid IP: {value}");
                 StartPingTimer();
             }
             else
             {
-                Logger.Debug($"Stopping ping timer for invalid IP: {value}");
+                Logger.Verbose($"Stopping ping timer for invalid IP: {value}");
                 StopPingTimer();
             }
         }
         else
         {
-            Logger.Debug("Stopping ping timer for empty IP");
+            Logger.Verbose("Stopping ping timer for empty IP");
             StopPingTimer();
         }
     }
@@ -254,6 +254,9 @@ public partial class MainViewModel : ViewModelBase
 
         EventSubscriptionService.Publish<DeviceTypeChangeEvent, DeviceType>(deviceType);
     }
+
+    #region Ping Logic
+
 
     private void StopPingTimer()
     {
@@ -281,10 +284,10 @@ public partial class MainViewModel : ViewModelBase
         {
             Interval = _pingInterval
         };
-        Logger.Debug($"************************* Adding PickerTimer_Tick event handler for IP: {IpAddress}");
+
          _pingTimer.Tick += PingTimer_Tick;
          
-         Logger.Debug($"Starting ping timer for IP: {IpAddress}");
+         Logger.Verbose($"Starting ping timer for IP: {IpAddress}");
          _pingTimer.Start();
     }
     
@@ -301,11 +304,11 @@ public partial class MainViewModel : ViewModelBase
             // Important: Store the IP address that was used for this ping operation
             string ipBeingPinged = currentIpAddress;
             
-            Logger.Debug($"PingTimer_Tick executing ping to: {ipBeingPinged}");
+            Logger.Verbose($"PingTimer_Tick executing ping to: {ipBeingPinged}");
             
             if (string.IsNullOrEmpty(ipBeingPinged))
             {
-                Logger.Debug("Empty IP - Setting IsConnected=false, IsWaiting=true");
+                Logger.Verbose("Empty IP - Setting IsConnected=false, IsWaiting=true");
                 IsConnected = false;
                 IsWaiting = true;
                 return;
@@ -320,7 +323,7 @@ public partial class MainViewModel : ViewModelBase
                 {
                     if (reply.Status == IPStatus.Success)
                     {
-                        Logger.Debug("Ping successful - Setting IsConnected=true, IsWaiting=false");
+                        Logger.Verbose("Ping successful - Setting IsConnected=true, IsWaiting=false");
                         
                         // used for status color changes
                         IsConnected = true;
@@ -331,7 +334,7 @@ public partial class MainViewModel : ViewModelBase
                     }
                     else
                     {
-                        Logger.Debug("Ping failed - Setting IsConnected=false, IsWaiting=true");
+                        Logger.Verbose("Ping failed - Setting IsConnected=false, IsWaiting=true");
                         
                         // used for status color changes
                         IsConnected = false;
@@ -355,15 +358,15 @@ public partial class MainViewModel : ViewModelBase
                     Logger.Error(pingEx, $"Error occurred during ping to {ipBeingPinged}");
                     IsConnected = false;
                     IsWaiting = true;
-                    Logger.Debug("Current state after exception: IsConnected=False, IsWaiting=True");
+                    Logger.Verbose("Current state after exception: IsConnected=False, IsWaiting=True");
                 }
                 else
                 {
-                    Logger.Debug($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring error");
+                    Logger.Verbose($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring error");
                 }
             }
         
-            Logger.Debug($"After ping to {ipBeingPinged}: IsConnected={IsConnected}, IsWaiting={IsWaiting}");
+            Logger.Verbose($"After ping to {ipBeingPinged}: IsConnected={IsConnected}, IsWaiting={IsWaiting}");
         }
         catch (Exception ex)
         {
@@ -373,6 +376,8 @@ public partial class MainViewModel : ViewModelBase
         }
     }
     
+    #endregion
+
     private async void Connect()
     {
         var appMessage = new AppMessage();

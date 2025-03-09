@@ -383,8 +383,9 @@ public partial class FirmwareTabViewModel : ViewModelBase
 
         foreach (var filename in filenames)
         {
-            string pattern = $@"^(?=.*{Regex.Escape(chipType)})(?=.*fpv).*?(?<memoryType>nand|nor)\.tgz$";  //Dynamically create regex with escaped chipType
-            var match = Regex.Match(filename, pattern, RegexOptions.IgnoreCase); //Added RegexOptions.IgnoreCase to compare 
+            //string pattern = $@"^(?=.*{Regex.Escape(chipType)})(?=.*fpv).*?(?<memoryType>nand|nor)\.tgz$";  //Dynamically create regex with escaped chipType
+            string simplePattern = $@".*{chipType}.*fpv.*";
+            var match = Regex.Match(filename, simplePattern, RegexOptions.IgnoreCase); //Added RegexOptions.IgnoreCase to compare 
             if (match.Success)
             {
                 if (!FirmwareBySoc.Contains(filename))

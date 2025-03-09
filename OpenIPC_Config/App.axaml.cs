@@ -328,7 +328,7 @@ public class App : Application
             new JProperty("Serilog",
                 new JObject(
                     new JProperty("Using", new JArray("Serilog.Sinks.Console", "Serilog.Sinks.File")),
-                    new JProperty("MinimumLevel", "Verbose"),
+                    new JProperty("MinimumLevel", "Debug"),
                     new JProperty("WriteTo",
                         new JArray(
                             new JObject(
