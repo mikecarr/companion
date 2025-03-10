@@ -3,10 +3,18 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:OpenIPC_Config.ViewModels"
+             xmlns:converters="clr-namespace:OpenIPC_Config.Converters"
              xmlns:assets="clr-namespace:OpenIPC_Config.Assets"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
              x:Class="OpenIPC_Config.Views.WfbTabView"
              x:DataType="vm:WfbTabViewModel">
+    
+    <!-- Add resources section with the converter -->
+    <UserControl.Resources>
+        <converters:PowerThresholdColorConverter x:Key="PowerColorConverter" Threshold="25" />
+        <converters:BooleanGreaterThanConverter x:Key="BooleanGreaterThanConverter" />
+    </UserControl.Resources>
+    
     <Panel>
 
         <StackPanel Orientation="Vertical">
@@ -97,9 +105,24 @@
                 <!--           ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" -->
                 <!--           ItemsSource="{Binding Power58GHz}" -->
                 <!--           SelectedItem="{Binding SelectedPower, Mode=TwoWay}" /> -->
+                <!-- <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Spacing="5" -->
+                <!--             IsEnabled="{Binding CanConnect}"> -->
+                <!--       -->
+                <!--     <Slider MinWidth="150" -->
+                <!--             Maximum="{Binding MaxPower58GHz}" Minimum="0" -->
+                <!--             VerticalAlignment="Center" -->
+                <!--             IsSnapToTickEnabled="True" -->
+                <!--             TickPlacement="BottomRight" -->
+                <!--             TickFrequency="5" -->
+                <!--             Value="{Binding SelectedPower}"  -->
+                <!--             ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" /> -->
+                <!--     <Border Height="20" Width="25" Classes="BoxShadow" CornerRadius="8"> -->
+                <!--     <Label HorizontalContentAlignment="Center" Content="{Binding SelectedPower}"/> -->
+                <!--     </Border> -->
+                <!-- </StackPanel> -->
                 <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Spacing="5"
                             IsEnabled="{Binding CanConnect}">
-                     
+    
                     <Slider MinWidth="150"
                             Maximum="{Binding MaxPower58GHz}" Minimum="0"
                             VerticalAlignment="Center"
@@ -107,10 +130,23 @@
                             TickPlacement="BottomRight"
                             TickFrequency="5"
                             Value="{Binding SelectedPower}" 
-                            ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" />
+                            ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" 
+                            Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}" />
+    
                     <Border Height="20" Width="25" Classes="BoxShadow" CornerRadius="8">
-                    <Label HorizontalContentAlignment="Center" Content="{Binding SelectedPower}"/>
+                        <Label HorizontalContentAlignment="Center" 
+                               Content="{Binding SelectedPower}" 
+                               Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}"/>
                     </Border>
+    
+                    <!-- Warning icon that only appears when above threshold -->
+                    <Panel Width="20" Height="20" 
+                           IsVisible="{Binding SelectedPower, Converter={StaticResource BooleanGreaterThanConverter}, ConverterParameter=25}">
+                        <Ellipse Fill="Red" Width="20" Height="20" />
+                        <TextBlock Text="!" FontWeight="Bold" Foreground="White" 
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   ToolTip.Tip="Power exceeds recommended level" />
+                    </Panel>
                 </StackPanel>
                 
                 <ComboBox Grid.Column="1" Grid.Row="1"
