@@ -7,6 +7,7 @@ public static class Telemetry
     public const string Serial = "serial";
     public const string Baud = "baud";
     public const string Router = "router";
+    public const string Fps = "fps";
     public const string Wlan = "wlan";
     public const string Bandwidth = "bandwidth";
     public const string Stbc = "stbc";

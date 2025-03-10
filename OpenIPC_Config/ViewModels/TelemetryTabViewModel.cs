@@ -47,8 +47,35 @@ public partial class TelemetryTabViewModel : ViewModelBase
     [ObservableProperty] private string _selectedMSPFps;
     [ObservableProperty] private string _selectedSerialPort;
     [ObservableProperty] private string _telemetryContent;
+    
+    // Add these observable properties to your #region Observable Properties section
+    [ObservableProperty] private bool _isSerialPortEnabled = true;
+    [ObservableProperty] private bool _isBaudRateEnabled = true;
+    [ObservableProperty] private bool _isRouterEnabled = true;
+    [ObservableProperty] private bool _isMSPFpsEnabled = false;
+    [ObservableProperty] private bool _isMcsIndexEnabled = true;
+    [ObservableProperty] private bool _isAggregateEnabled = true;
+    [ObservableProperty] private bool _isRcChannelEnabled = true;
     #endregion
 
+    #region Constants
+// Add this dictionary to map between numeric values and descriptive names
+    private readonly Dictionary<string, string> _routerMapping = new Dictionary<string, string>
+    {
+        { "0", "mavfwd" },
+        { "1", "mavlink-routed" },
+        { "2", "msposd" }
+    };
+
+// Reverse mapping for saving
+    private readonly Dictionary<string, string> _reverseRouterMapping = new Dictionary<string, string>
+    {
+        { "mavfwd", "0" },
+        { "mavlink-routed", "1" },
+        { "msposd", "2" }
+    };
+    #endregion
+    
     #region Collections
     /// <summary>
     /// Available serial ports for telemetry
@@ -124,7 +151,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
     #region Initialization Methods
     private void InitializeCollections()
     {
-        SerialPorts = new ObservableCollection<string> { "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS2" };
+        SerialPorts = new ObservableCollection<string> { "ttyS0", "ttyS1", "ttyS2" };
         BaudRates = new ObservableCollection<string> { "4800", "9600", "19200", "38400", "57600", "115200" };
         McsIndex = new ObservableCollection<string> { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
         Aggregate = new ObservableCollection<string> { "0", "1", "2", "4", "6", "8", "10", "12", "14", "15" };
@@ -325,6 +352,23 @@ public partial class TelemetryTabViewModel : ViewModelBase
 
     #region Helper Methods
     
+    private void UpdateControlStates()
+    {
+        // Default state - all enabled if connected
+        var defaultState = CanConnect;
+    
+        IsSerialPortEnabled = defaultState;
+    
+        // For BaudRate, you already have a specific flag
+        IsBaudRateEnabled = defaultState && (_globalSettingsService.IsWfbYamlEnabled ? false : true);
+    
+        IsRouterEnabled = defaultState;
+        IsMSPFpsEnabled = defaultState;
+        IsMcsIndexEnabled = defaultState && !_globalSettingsService.IsWfbYamlEnabled;
+        IsAggregateEnabled = defaultState && !_globalSettingsService.IsWfbYamlEnabled;
+        IsRcChannelEnabled = defaultState && !_globalSettingsService.IsWfbYamlEnabled;
+    }
+    
     private void OnWfbYamlContentUpdated(WfbYamlContentUpdatedMessage message)
     { 
         _yamlConfigService.ParseYaml(message.Content, _yamlConfig);
@@ -356,9 +400,14 @@ public partial class TelemetryTabViewModel : ViewModelBase
     private void ParseWfbYamlContent()
     {
         Debug.WriteLine("ParseWfbYamlContent");
+        UpdateControlStates();
+
+        IsMSPFpsEnabled = true;
+
         UpdateViewModelPropertiesFromYaml();
     }
-    
+
+
     private void UpdateViewModelPropertiesFromYaml()
     {
         if (_yamlConfig.TryGetValue(WfbYaml.TelemetrySerialPort, out var serialPort))
@@ -412,14 +461,21 @@ public partial class TelemetryTabViewModel : ViewModelBase
         switch (key)
         {
             case Telemetry.Serial:
-                if (SerialPorts?.Contains(value) ?? false)
+                // Extract just the base name from the full path (e.g., "ttyS0" from "/dev/ttyS0")
+                string serialPortBaseName = value;
+                if (value.StartsWith("/dev/"))
                 {
-                    SelectedSerialPort = value;
+                    serialPortBaseName = value.Substring("/dev/".Length);
+                }
+
+                if (SerialPorts?.Contains(serialPortBaseName) ?? false)
+                {
+                    SelectedSerialPort = serialPortBaseName;
                 }
                 else
                 {
-                    SerialPorts.Add(value);
-                    SelectedSerialPort = value;
+                    SerialPorts.Add(serialPortBaseName);
+                    SelectedSerialPort = serialPortBaseName;
                 }
                 break;
 
@@ -436,14 +492,21 @@ public partial class TelemetryTabViewModel : ViewModelBase
                 break;
 
             case Telemetry.Router:
-                if (Router?.Contains(value) ?? false)
+                // Convert numeric value to descriptive name if possible
+                string routerName = value;
+                if (_routerMapping.TryGetValue(value, out var mappedRouter))
                 {
-                    SelectedRouter = value;
+                    routerName = mappedRouter;
+                }
+            
+                if (Router?.Contains(routerName) ?? false)
+                {
+                    SelectedRouter = routerName;
                 }
                 else
                 {
-                    Router.Add(value);
-                    SelectedRouter = value;
+                    Router.Add(routerName);
+                    SelectedRouter = routerName;
                 }
                 break;
 
@@ -501,14 +564,24 @@ public partial class TelemetryTabViewModel : ViewModelBase
         string aggregate,
         string rcChannel)
     {
+        // Convert the short serial port name back to the full path if needed
+        string fullSerialPath = serial.StartsWith("/dev/") ? serial : $"/dev/{serial}";
+        
+        // Convert descriptive router name to numeric value if needed
+        string routerValue = router;
+        if (_reverseRouterMapping.TryGetValue(router, out var mappedRouterValue))
+        {
+            routerValue = mappedRouterValue;
+        }
+        
         var regex = new Regex(@"(serial|baud|router|mcs_index|aggregate|channels)=.*");
         return regex.Replace(TelemetryContent, match =>
         {
             return match.Groups[1].Value switch
             {
-                Telemetry.Serial => $"serial={serial}",
+                Telemetry.Serial => $"serial={fullSerialPath}",
                 Telemetry.Baud => $"baud={baudRate}",
-                Telemetry.Router => $"router={router}",
+                Telemetry.Router => $"router={routerValue}",
                 Telemetry.McsIndex => $"mcs_index={mcsIndex}",
                 Telemetry.Aggregate => $"aggregate={aggregate}",
                 Telemetry.RcChannel => $"channels={rcChannel}",

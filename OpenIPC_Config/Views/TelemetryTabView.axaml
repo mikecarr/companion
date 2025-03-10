@@ -57,35 +57,35 @@
                 <ComboBox Grid.Row="0" Grid.Column="1"
                           x:Name="SerialPortComboBox"
                           ToolTip.Tip="Serial Port" ItemsSource="{Binding SerialPorts}"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsSerialPortEnabled}"
                           SelectedItem="{Binding SelectedSerialPort, Mode=TwoWay}"  />
 
                 <ComboBox Grid.Row="1" Grid.Column="1" ToolTip.Tip="Baud Rate" ItemsSource="{Binding BaudRates}"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsBaudRateEnabled}"
                           SelectedItem="{Binding SelectedBaudRate, Mode=TwoWay}"  />
 
                 <ComboBox Grid.Row="2" Grid.Column="1" ToolTip.Tip="{x:Static assets:Resources.TelemetryRouterToolTip}"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsRouterEnabled}"
                           ItemsSource="{Binding Router}"
                           SelectedItem="{Binding SelectedRouter, Mode=TwoWay}"  />
                 
                 <ComboBox Grid.Row="3" Grid.Column="1" ToolTip.Tip="{x:Static assets:Resources.TelemetryMSPFpsToolTip}"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsMSPFpsEnabled}"
                           ItemsSource="{Binding MSPFps}"
                           SelectedItem="{Binding SelectedMSPFps, Mode=TwoWay}"  />
 
                 <ComboBox Grid.Row="4" Grid.Column="1" ToolTip.Tip="MCS Index"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsMcsIndexEnabled}"
                           ItemsSource="{Binding McsIndex}"
                           SelectedItem="{Binding SelectedMcsIndex, Mode=TwoWay}"  />
 
                 <ComboBox Grid.Row="5" Grid.Column="1" ToolTip.Tip="Aggregate" 
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsAggregateEnabled}"
                           ItemsSource="{Binding Aggregate}"
                           SelectedItem="{Binding SelectedAggregate, Mode=TwoWay}"  />
 
                 <ComboBox Grid.Row="6" Grid.Column="1" ToolTip.Tip="RC Channel"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsRcChannelEnabled}"
                           ItemsSource="{Binding RC_Channel}"
                           SelectedItem="{Binding SelectedRcChannel, Mode=TwoWay}" />
                 
