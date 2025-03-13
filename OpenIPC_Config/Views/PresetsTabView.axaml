@@ -79,10 +79,27 @@
                     <TextBlock Text="Add Repository" FontSize="14" Foreground="White" VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
+            <!-- Save Preset Button -->
+            <Button Width="150" Height="30" Background="{StaticResource OpenIPCBlueBrush}"
+                    VerticalAlignment="Center" CornerRadius="10"
+                    IsEnabled="{Binding CanConnect}"
+                    >
+            
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center" Spacing="5">
+            
+                    <!-- SVG Icon -->
+                    <!-- <Svg Width="20" Height="20" Path="avares://OpenIPC_Config/Assets/Icons/iconoir_github.svg" /> -->
+            
+                    <!-- Text -->
+                    <TextBlock Text="Save Current" FontSize="14" Foreground="White" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
         </StackPanel>
 
         <!-- Filter Bar -->
-        <StackPanel Orientation="Horizontal" Grid.Row="2" Margin="0,0,0,10" Spacing="10">
+        <StackPanel Orientation="Horizontal" Grid.Row="2" Margin="0,0,0,10" >
             <!-- Categories Dropdown -->
             <ComboBox Width="165"
                       ItemsSource="{Binding Categories}"

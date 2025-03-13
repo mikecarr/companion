@@ -192,6 +192,7 @@ public class PresetService : IPresetService
             
             // Fetch current configurations
             string wfbConfContent = await FetchFileContentAsync(OpenIPC.WfbConfFileLoc);
+            string wfbYamlContent = await FetchFileContentAsync(OpenIPC.WfbYamlFileLoc);
             string majesticYamlContent = await FetchFileContentAsync(OpenIPC.MajesticFileLoc);
             
             var files = new Dictionary<string, Dictionary<string, string>>();
