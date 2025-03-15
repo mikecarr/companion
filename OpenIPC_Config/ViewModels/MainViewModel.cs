@@ -108,8 +108,6 @@ public partial class MainViewModel : ViewModelBase
 
         if (deviceType == DeviceType.Camera)
         {
-            Tabs.Add(new TabItemViewModel("Firmware", "avares://OpenIPC_Config/Assets/Icons/iconair_firmware_dark.svg",
-                _serviceProvider.GetRequiredService<FirmwareTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("WFB", "avares://OpenIPC_Config/Assets/Icons/iconoir_wifi_dark.svg",
                 _serviceProvider.GetRequiredService<WfbTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Camera", "avares://OpenIPC_Config/Assets/Icons/iconoir_camera_dark.svg",
@@ -120,6 +118,9 @@ public partial class MainViewModel : ViewModelBase
             //     _serviceProvider.GetRequiredService<PresetsTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Setup", "avares://OpenIPC_Config/Assets/Icons/iconoir_settings_dark.svg",
                 _serviceProvider.GetRequiredService<SetupTabViewModel>(), IsTabsCollapsed));
+            Tabs.Add(new TabItemViewModel("Firmware", "avares://OpenIPC_Config/Assets/Icons/iconair_firmware_dark.svg",
+                _serviceProvider.GetRequiredService<FirmwareTabViewModel>(), IsTabsCollapsed));
+
         }
         else if (deviceType == DeviceType.Radxa)
         {
