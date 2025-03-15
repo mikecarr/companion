@@ -631,7 +631,7 @@ public partial class MainViewModel : ViewModelBase
             try
             {
                 // download file wfb.yaml
-                Logger.Debug($"Reading new wfb.yaml");
+                Logger.Debug($"Reading wfb.yaml");
 
                 var wfbContent = await SshClientService.DownloadFileAsync(_deviceConfig, OpenIPC.WfbYamlFileLoc);
 
