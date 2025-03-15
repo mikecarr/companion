@@ -252,14 +252,12 @@ public class App : Application
 
         services.AddSingleton<IYamlConfigService, YamlConfigService>();
         services.AddSingleton<ILogger>(sp => Log.Logger);
-
-        // Register configuration
-        services.AddSingleton<IConfiguration>(configuration);
-
+        
         // Register IConfiguration
         services.AddSingleton<IConfiguration>(configuration);
         services.AddTransient<DeviceConfigValidator>();
-
+        services.AddSingleton<IGlobalSettingsService, GlobalSettingsService>();
+        
         // Register IConfiguration
         services.AddTransient<DeviceConfigValidator>();
 
@@ -285,8 +283,6 @@ public class App : Application
         // Register ViewModels
         services.AddSingleton<MainViewModel>();
         
-        // Register tab ViewModels as singletons
-        services.AddSingleton<GlobalSettingsViewModel>();
 
         services.AddSingleton<CameraSettingsTabViewModel>();
         services.AddSingleton<ConnectControlsViewModel>();

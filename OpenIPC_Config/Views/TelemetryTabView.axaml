@@ -44,38 +44,49 @@
                 <Label Grid.Row="2" Grid.Column="0" 
                        Content="Router" />
                 <Label Grid.Row="3" Grid.Column="0" 
-                       Content="MCS Index" />
+                       Content="MSP Fps" />
                 <Label Grid.Row="4" Grid.Column="0" 
-                       Content="Aggregate" />
+                       Content="MCS Index" />
                 <Label Grid.Row="5" Grid.Column="0" 
+                       Content="Aggregate" />
+                <Label Grid.Row="6" Grid.Column="0" 
                        Content="RC Channel" />
 
 
                 <!-- ComboBoxes in the center column -->
                 <ComboBox Grid.Row="0" Grid.Column="1"
+                          x:Name="SerialPortComboBox"
                           ToolTip.Tip="Serial Port" ItemsSource="{Binding SerialPorts}"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsSerialPortEnabled}"
                           SelectedItem="{Binding SelectedSerialPort, Mode=TwoWay}"  />
 
                 <ComboBox Grid.Row="1" Grid.Column="1" ToolTip.Tip="Baud Rate" ItemsSource="{Binding BaudRates}"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsBaudRateEnabled}"
                           SelectedItem="{Binding SelectedBaudRate, Mode=TwoWay}"  />
 
                 <ComboBox Grid.Row="2" Grid.Column="1" ToolTip.Tip="{x:Static assets:Resources.TelemetryRouterToolTip}"
-                          IsEnabled="{Binding CanConnect}"
+                          IsEnabled="{Binding IsRouterEnabled}"
                           ItemsSource="{Binding Router}"
-                          SelectedItem="{Binding SelectedRouter, Mode=TwoWay}" WrapSelection="True"  />
+                          SelectedItem="{Binding SelectedRouter, Mode=TwoWay}"  />
+                
+                <ComboBox Grid.Row="3" Grid.Column="1" ToolTip.Tip="{x:Static assets:Resources.TelemetryMSPFpsToolTip}"
+                          IsEnabled="{Binding IsMSPFpsEnabled}"
+                          ItemsSource="{Binding MSPFps}"
+                          SelectedItem="{Binding SelectedMSPFps, Mode=TwoWay}"  />
 
-                <ComboBox Grid.Row="3" Grid.Column="1" ToolTip.Tip="MCS Index" ItemsSource="{Binding McsIndex}"
-                          IsEnabled="{Binding CanConnect}"
+                <ComboBox Grid.Row="4" Grid.Column="1" ToolTip.Tip="MCS Index"
+                          IsEnabled="{Binding IsMcsIndexEnabled}"
+                          ItemsSource="{Binding McsIndex}"
                           SelectedItem="{Binding SelectedMcsIndex, Mode=TwoWay}"  />
 
-                <ComboBox Grid.Row="4" Grid.Column="1" ToolTip.Tip="Aggregate" ItemsSource="{Binding Aggregate}"
-                          IsEnabled="{Binding CanConnect}"
+                <ComboBox Grid.Row="5" Grid.Column="1" ToolTip.Tip="Aggregate" 
+                          IsEnabled="{Binding IsAggregateEnabled}"
+                          ItemsSource="{Binding Aggregate}"
                           SelectedItem="{Binding SelectedAggregate, Mode=TwoWay}"  />
 
-                <ComboBox Grid.Row="5" Grid.Column="1" ToolTip.Tip="RC Channel" ItemsSource="{Binding RC_Channel}"
-                          IsEnabled="{Binding CanConnect}"
+                <ComboBox Grid.Row="6" Grid.Column="1" ToolTip.Tip="RC Channel"
+                          IsEnabled="{Binding IsRcChannelEnabled}"
+                          ItemsSource="{Binding RC_Channel}"
                           SelectedItem="{Binding SelectedRcChannel, Mode=TwoWay}" />
                 
                 <Panel Grid.Row="6" Grid.Column="1" Height="38"/>

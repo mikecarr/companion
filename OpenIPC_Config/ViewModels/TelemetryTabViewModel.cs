@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -21,24 +23,59 @@ public partial class TelemetryTabViewModel : ViewModelBase
 {
     #region Private Fields
     private readonly IMessageBoxService _messageBoxService;
+    private readonly IYamlConfigService _yamlConfigService;
+    private readonly Dictionary<string, string> _yamlConfig = new();
+    private readonly IGlobalSettingsService _globalSettingsService;
     #endregion
 
     #region Public Properties
     public bool IsMobile => App.OSType == "Mobile";
     public bool IsEnabledForView => CanConnect && !IsMobile;
+    
+    // Computed property for selective disabling
+
     #endregion
 
     #region Observable Properties
     [ObservableProperty] private bool _canConnect;
+    
     [ObservableProperty] private string _selectedAggregate;
     [ObservableProperty] private string _selectedBaudRate;
     [ObservableProperty] private string _selectedMcsIndex;
     [ObservableProperty] private string _selectedRcChannel;
     [ObservableProperty] private string _selectedRouter;
+    [ObservableProperty] private string _selectedMSPFps;
     [ObservableProperty] private string _selectedSerialPort;
     [ObservableProperty] private string _telemetryContent;
+    
+    // Add these observable properties to your #region Observable Properties section
+    [ObservableProperty] private bool _isSerialPortEnabled = true;
+    [ObservableProperty] private bool _isBaudRateEnabled = true;
+    [ObservableProperty] private bool _isRouterEnabled = true;
+    [ObservableProperty] private bool _isMSPFpsEnabled = false;
+    [ObservableProperty] private bool _isMcsIndexEnabled = true;
+    [ObservableProperty] private bool _isAggregateEnabled = true;
+    [ObservableProperty] private bool _isRcChannelEnabled = true;
     #endregion
 
+    #region Constants
+// Add this dictionary to map between numeric values and descriptive names
+    private readonly Dictionary<string, string> _routerMapping = new Dictionary<string, string>
+    {
+        { "0", "mavfwd" },
+        { "1", "mavlink-routed" },
+        { "2", "msposd" }
+    };
+
+// Reverse mapping for saving
+    private readonly Dictionary<string, string> _reverseRouterMapping = new Dictionary<string, string>
+    {
+        { "mavfwd", "0" },
+        { "mavlink-routed", "1" },
+        { "msposd", "2" }
+    };
+    #endregion
+    
     #region Collections
     /// <summary>
     /// Available serial ports for telemetry
@@ -69,6 +106,11 @@ public partial class TelemetryTabViewModel : ViewModelBase
     /// Available router options
     /// </summary>
     public ObservableCollection<string> Router { get; private set; }
+    /// <summary>
+    /// Available msposd fps options
+    /// </summary>
+    public ObservableCollection<string> MSPFps { get; private set; }
+
     #endregion
 
     #region Commands
@@ -91,10 +133,14 @@ public partial class TelemetryTabViewModel : ViewModelBase
         ILogger logger,
         ISshClientService sshClientService,
         IEventSubscriptionService eventSubscriptionService,
-        IMessageBoxService messageBoxService)
+        IMessageBoxService messageBoxService,
+        IYamlConfigService yamlConfigService,
+        IGlobalSettingsService globalSettingsService)
         : base(logger, sshClientService, eventSubscriptionService)
     {
         _messageBoxService = messageBoxService;
+        _yamlConfigService = yamlConfigService;
+        _globalSettingsService = globalSettingsService;
 
         InitializeCollections();
         InitializeCommands();
@@ -105,12 +151,13 @@ public partial class TelemetryTabViewModel : ViewModelBase
     #region Initialization Methods
     private void InitializeCollections()
     {
-        SerialPorts = new ObservableCollection<string> { "/dev/ttyS0", "/dev/ttyS1", "/dev/ttyS2" };
+        SerialPorts = new ObservableCollection<string> { "ttyS0", "ttyS1", "ttyS2" };
         BaudRates = new ObservableCollection<string> { "4800", "9600", "19200", "38400", "57600", "115200" };
         McsIndex = new ObservableCollection<string> { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
         Aggregate = new ObservableCollection<string> { "0", "1", "2", "4", "6", "8", "10", "12", "14", "15" };
         RC_Channel = new ObservableCollection<string> { "0", "1", "2", "3", "4", "5", "6", "7", "8" };
-        Router = new ObservableCollection<string> { "0", "1", "2" };
+        Router = new ObservableCollection<string> { "mavfwd", "mavlink-routed", "msposd" }; // 0,1,2 telemetry.conf
+        MSPFps = new ObservableCollection<string> { "20", "30","60", "90", "100", "120" }; 
     }
 
     private void InitializeCommands()
@@ -130,7 +177,11 @@ public partial class TelemetryTabViewModel : ViewModelBase
     {
         EventSubscriptionService.Subscribe<TelemetryContentUpdatedEvent, TelemetryContentUpdatedMessage>(
             OnTelemetryContentUpdated);
+        
         EventSubscriptionService.Subscribe<AppMessageEvent, AppMessage>(OnAppMessage);
+        
+        EventSubscriptionService.Subscribe<WfbYamlContentUpdatedEvent, WfbYamlContentUpdatedMessage>(
+            OnWfbYamlContentUpdated);
     }
     #endregion
 
@@ -152,6 +203,25 @@ public partial class TelemetryTabViewModel : ViewModelBase
     }
     #endregion
 
+    #region Control Handlers
+    partial void OnSelectedSerialPortChanged(string value)
+    {
+        Logger.Debug($"SelectedSerialPortChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.TelemetrySerialPort, value.ToString());   
+    }
+    
+    partial void OnSelectedRouterChanged(string value)
+    {
+        Logger.Debug($"SelectedRouterChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.TelemetryRouter, value.ToString());   
+    }
+    partial void OnSelectedMSPFpsChanged(string value)
+    {
+        Logger.Debug($"SelectedMSPFpsChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.TelemetryOsdFps, value.ToString());   
+    }
+    #endregion
+    
     #region Command Handlers
     private async void EnableUART0()
     {
@@ -242,16 +312,69 @@ public partial class TelemetryTabViewModel : ViewModelBase
 
     private async void SaveAndRestartTelemetry()
     {
-        Log.Debug("Saving and restarting telemetry...");
-        TelemetryContent = UpdateTelemetryContent(SelectedSerialPort, SelectedBaudRate, SelectedRouter,
-            SelectedMcsIndex, SelectedAggregate, SelectedRcChannel);
-        await SshClientService.UploadFileStringAsync(DeviceConfig.Instance, OpenIPC.TelemetryConfFileLoc,
-            TelemetryContent);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.TelemetryRestartCommand);
+        if (_globalSettingsService.IsWfbYamlEnabled)
+        {
+            Log.Debug("Saving WFB YAML...");
+            try
+            {
+                var updatedYamlContent = _yamlConfigService.UpdateYaml(_yamlConfig);
+            
+                await SshClientService.UploadFileStringAsync(
+                    DeviceConfig.Instance,
+                    OpenIPC.WfbYamlFileLoc,
+                    updatedYamlContent);
+
+                SshClientService.ExecuteCommandAsync(
+                    DeviceConfig.Instance,
+                    DeviceCommands.WfbRestartCommand);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to update Wfb.yaml configuration: {ExceptionMessage}", ex.Message);
+                return;
+            }
+            
+
+            Logger.Information("wfb.yaml configuration updated and service is restarting.");
+        }
+        else
+        {
+            Log.Debug("Saving and restarting telemetry...");
+            TelemetryContent = UpdateTelemetryContent(SelectedSerialPort, SelectedBaudRate, SelectedRouter,
+                SelectedMcsIndex, SelectedAggregate, SelectedRcChannel);
+            await SshClientService.UploadFileStringAsync(DeviceConfig.Instance, OpenIPC.TelemetryConfFileLoc,
+                TelemetryContent);
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.TelemetryRestartCommand);
+        }
+        
     }
     #endregion
 
     #region Helper Methods
+    
+    private void UpdateControlStates()
+    {
+        // Default state - all enabled if connected
+        var defaultState = CanConnect;
+    
+        IsSerialPortEnabled = defaultState;
+    
+        // For BaudRate, you already have a specific flag
+        IsBaudRateEnabled = defaultState && (_globalSettingsService.IsWfbYamlEnabled ? false : true);
+    
+        IsRouterEnabled = defaultState;
+        IsMSPFpsEnabled = defaultState;
+        IsMcsIndexEnabled = defaultState && !_globalSettingsService.IsWfbYamlEnabled;
+        IsAggregateEnabled = defaultState && !_globalSettingsService.IsWfbYamlEnabled;
+        IsRcChannelEnabled = defaultState && !_globalSettingsService.IsWfbYamlEnabled;
+    }
+    
+    private void OnWfbYamlContentUpdated(WfbYamlContentUpdatedMessage message)
+    { 
+        _yamlConfigService.ParseYaml(message.Content, _yamlConfig);
+        ParseWfbYamlContent();
+    }
+    
     /// <summary>
     /// Parses telemetry content and updates corresponding properties
     /// </summary>
@@ -274,6 +397,62 @@ public partial class TelemetryTabViewModel : ViewModelBase
         }
     }
 
+    private void ParseWfbYamlContent()
+    {
+        Debug.WriteLine("ParseWfbYamlContent");
+        UpdateControlStates();
+
+        IsMSPFpsEnabled = true;
+
+        UpdateViewModelPropertiesFromYaml();
+    }
+
+
+    private void UpdateViewModelPropertiesFromYaml()
+    {
+        if (_yamlConfig.TryGetValue(WfbYaml.TelemetrySerialPort, out var serialPort))
+        {
+            if (SerialPorts?.Contains(serialPort) ?? false)
+            {
+                SelectedSerialPort = serialPort;
+            }
+            else
+            {
+                SerialPorts.Add(serialPort);
+                SelectedSerialPort = serialPort;
+            }
+        }
+        
+        if (_yamlConfig.TryGetValue(WfbYaml.TelemetryRouter, out var router))
+        {
+            if (Router?.Contains(router) ?? false)
+            {
+                SelectedRouter = router;
+            }
+            else
+            {
+                Router.Add(router);
+                SelectedRouter = router;
+            }
+            
+        }
+        
+        if (_yamlConfig.TryGetValue(WfbYaml.TelemetryOsdFps, out var osd_fps))
+        {
+            if (MSPFps?.Contains(osd_fps) ?? false)
+            {
+                SelectedMSPFps = osd_fps;
+            }
+            else
+            {
+                MSPFps.Add(osd_fps);
+                SelectedMSPFps = osd_fps;
+            }
+            
+        }
+
+        
+    }
     /// <summary>
     /// Updates the corresponding property based on the telemetry line key-value pair
     /// </summary>
@@ -282,14 +461,21 @@ public partial class TelemetryTabViewModel : ViewModelBase
         switch (key)
         {
             case Telemetry.Serial:
-                if (SerialPorts?.Contains(value) ?? false)
+                // Extract just the base name from the full path (e.g., "ttyS0" from "/dev/ttyS0")
+                string serialPortBaseName = value;
+                if (value.StartsWith("/dev/"))
                 {
-                    SelectedSerialPort = value;
+                    serialPortBaseName = value.Substring("/dev/".Length);
+                }
+
+                if (SerialPorts?.Contains(serialPortBaseName) ?? false)
+                {
+                    SelectedSerialPort = serialPortBaseName;
                 }
                 else
                 {
-                    SerialPorts.Add(value);
-                    SelectedSerialPort = value;
+                    SerialPorts.Add(serialPortBaseName);
+                    SelectedSerialPort = serialPortBaseName;
                 }
                 break;
 
@@ -306,14 +492,21 @@ public partial class TelemetryTabViewModel : ViewModelBase
                 break;
 
             case Telemetry.Router:
-                if (Router?.Contains(value) ?? false)
+                // Convert numeric value to descriptive name if possible
+                string routerName = value;
+                if (_routerMapping.TryGetValue(value, out var mappedRouter))
                 {
-                    SelectedRouter = value;
+                    routerName = mappedRouter;
+                }
+            
+                if (Router?.Contains(routerName) ?? false)
+                {
+                    SelectedRouter = routerName;
                 }
                 else
                 {
-                    Router.Add(value);
-                    SelectedRouter = value;
+                    Router.Add(routerName);
+                    SelectedRouter = routerName;
                 }
                 break;
 
@@ -359,6 +552,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
         }
     }
 
+
     /// <summary>
     /// Updates telemetry content with new configuration values
     /// </summary>
@@ -370,14 +564,24 @@ public partial class TelemetryTabViewModel : ViewModelBase
         string aggregate,
         string rcChannel)
     {
+        // Convert the short serial port name back to the full path if needed
+        string fullSerialPath = serial.StartsWith("/dev/") ? serial : $"/dev/{serial}";
+        
+        // Convert descriptive router name to numeric value if needed
+        string routerValue = router;
+        if (_reverseRouterMapping.TryGetValue(router, out var mappedRouterValue))
+        {
+            routerValue = mappedRouterValue;
+        }
+        
         var regex = new Regex(@"(serial|baud|router|mcs_index|aggregate|channels)=.*");
         return regex.Replace(TelemetryContent, match =>
         {
             return match.Groups[1].Value switch
             {
-                Telemetry.Serial => $"serial={serial}",
+                Telemetry.Serial => $"serial={fullSerialPath}",
                 Telemetry.Baud => $"baud={baudRate}",
-                Telemetry.Router => $"router={router}",
+                Telemetry.Router => $"router={routerValue}",
                 Telemetry.McsIndex => $"mcs_index={mcsIndex}",
                 Telemetry.Aggregate => $"aggregate={aggregate}",
                 Telemetry.RcChannel => $"channels={rcChannel}",
@@ -385,5 +589,19 @@ public partial class TelemetryTabViewModel : ViewModelBase
             };
         });
     }
+    
+    public void UpdateYamlConfig(string key, string newValue)
+    {
+        if (_yamlConfig.ContainsKey(key))
+            _yamlConfig[key] = newValue;
+        else
+            _yamlConfig.Add(key, newValue);
+
+        if (string.IsNullOrEmpty(newValue))
+            _yamlConfig.Remove(key);
+    }
+    
+    
+    
     #endregion
 }

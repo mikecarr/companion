@@ -36,7 +36,10 @@ public class YamlConfigService : IYamlConfigService
             }
 
             var root = (YamlMappingNode)yaml.Documents[0].RootNode;
-            foreach (var entry in root.Children) ParseYamlNode(entry.Key.ToString(), entry.Value, yamlConfig);
+            foreach (var entry in root.Children)
+            {
+                ParseYamlNode(entry.Key.ToString(), entry.Value, yamlConfig);
+            }
 
             _logger.Information("YAML content parsed successfully.");
         }
