@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:OpenIPC_Config.ViewModels"
+             xmlns:assets="clr-namespace:OpenIPC_Config.Assets"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="OpenIPC_Config.Views.FirmwareTabView"
              x:DataType="vm:FirmwareTabViewModel">
@@ -68,7 +69,8 @@
 
                 <!-- Choice Section -->
                 <Border Grid.Row="4" Grid.Column="0"  Grid.ColumnSpan="2" Background="#E7E7E7" CornerRadius="8" Padding="5">
-                    <Grid ColumnDefinitions="Auto, Auto, *" RowDefinitions="Auto">
+                    <Grid ColumnDefinitions="Auto, Auto, *" RowDefinitions="Auto"
+                          ToolTip.Tip="{x:Static assets:Resources.FirmwareChoiceToolTip}">
                         <TextBlock Text="Select Firmware" Grid.Row="0" Grid.Column="0"
                                    IsEnabled="{Binding CanUseDropdowns}"
                                    VerticalAlignment="Center" />
@@ -89,7 +91,8 @@
                     
                     <Grid ColumnDefinitions="Auto, Auto, Auto" 
                           RowDefinitions="Auto, Auto" 
-                          ShowGridLines="False" >
+                          ShowGridLines="False"
+                          ToolTip.Tip="{x:Static assets:Resources.FirmwareLocalToolTip}">
                         
                         <!-- Manual upload -->
                         <TextBlock Text="Local" Grid.Row="0" Grid.Column="0"

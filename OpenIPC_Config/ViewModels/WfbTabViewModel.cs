@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -24,11 +26,15 @@ public partial class WfbTabViewModel : ViewModelBase
     private readonly Dictionary<int, string> _24FrequencyMapping = FrequencyMappings.Frequency24GHz;
     private readonly Dictionary<int, string> _58FrequencyMapping = FrequencyMappings.Frequency58GHz;
     private bool _isDisposed;
+    private readonly IYamlConfigService _yamlConfigService;
+    private readonly Dictionary<string, string> _yamlConfig = new();
+    private readonly IGlobalSettingsService _globalSettingsService;
     #endregion
 
     #region Observable Properties
     [ObservableProperty] private bool _canConnect;
     [ObservableProperty] private string _wfbConfContent;
+    [ObservableProperty] private string _wfbYamlContent;
     [ObservableProperty] private int _selectedChannel;
     [ObservableProperty] private int _selectedPower24GHz;
     [ObservableProperty] private int _selectedBandwidth;
@@ -53,8 +59,8 @@ public partial class WfbTabViewModel : ViewModelBase
     [ObservableProperty] private ObservableCollection<int> _ldpc;
     [ObservableProperty] private ObservableCollection<int> _fecK;
     [ObservableProperty] private ObservableCollection<int> _fecN;
-    [ObservableProperty] private int _maxPower58GHz = 50;
-    [ObservableProperty] private int _maxPower24GHz = 50;
+    [ObservableProperty] private int _maxPower58GHz = 63;
+    [ObservableProperty] private int _maxPower24GHz = 63;
     #endregion
 
     #region Commands
@@ -71,9 +77,19 @@ public partial class WfbTabViewModel : ViewModelBase
     public WfbTabViewModel(
         ILogger logger,
         ISshClientService sshClientService,
-        IEventSubscriptionService eventSubscriptionService)
+        IEventSubscriptionService eventSubscriptionService,
+        IYamlConfigService yamlConfigService,
+        IGlobalSettingsService globalSettingsSettingsViewModel)
         : base(logger, sshClientService, eventSubscriptionService)
     {
+        _yamlConfigService = yamlConfigService ?? throw new ArgumentNullException(nameof(yamlConfigService));
+        _globalSettingsService = globalSettingsSettingsViewModel ?? throw new ArgumentNullException(nameof(globalSettingsSettingsViewModel));
+        
+        // read device to determine configurations
+        _globalSettingsService.ReadDevice();
+        Logger.Debug($"IsWfbYamlEnabled = {_globalSettingsService.IsWfbYamlEnabled}");
+
+        
         InitializeCollections();
         InitializeCommands();
         SubscribeToEvents();
@@ -87,8 +103,8 @@ public partial class WfbTabViewModel : ViewModelBase
         Frequencies58GHz = new ObservableCollectionExtended<string>(_58FrequencyMapping.Values);
         Frequencies24GHz = new ObservableCollectionExtended<string>(_24FrequencyMapping.Values);
 
-        Power58GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower58GHz).Select(i => (i * 5)));
-        Power24GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower24GHz).Select(i => (i * 5)));
+        Power58GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower58GHz).Select(i => (i * 3)));
+        Power24GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower24GHz).Select(i => (i * 3)));
 
         Bandwidth = new ObservableCollectionExtended<int> { 20, 40 };
         McsIndex = new ObservableCollectionExtended<int>(Enumerable.Range(1, 31));
@@ -103,10 +119,53 @@ public partial class WfbTabViewModel : ViewModelBase
         RestartWfbCommand = new RelayCommand(RestartWfb);
     }
 
+
+    partial void OnSelectedChannelChanged(int value)
+    {
+        Logger.Verbose($"SelectedChannelChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.WfbChannel, value.ToString());
+    }
+    partial void OnSelectedPowerChanged(int value)
+    {
+        Logger.Verbose($"SelectedPowerChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.WfbTxPower, value.ToString());
+    }
+    partial void OnSelectedMcsIndexChanged(int value)
+    {
+        Logger.Verbose($"SelectedMcsIndexStringChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.BroadcastMcsIndex, value.ToString());
+    }
+    partial void OnSelectedFecKChanged(int value)
+    {
+        Logger.Verbose($"SelectedFecKChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.BroadcastFecK, value.ToString());
+    }
+    partial void OnSelectedFecNChanged(int value)
+    {
+        Logger.Verbose($"SelectedFecNChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.BroadcastFecN, value.ToString());
+    }
+    partial void OnSelectedLdpcChanged(int value)
+    {
+        Logger.Verbose($"SelectedLdpcChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.BroadcastLdpc, value.ToString());
+    }
+    partial void OnSelectedStbcChanged(int value)
+    {
+        Logger.Verbose($"SelectedStbcChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.BroadcastStbc, value.ToString());
+    }
+    
+    partial void OnSelectedBandwidthChanged(int value)
+    {
+        Logger.Verbose($"SelectedBandwidthChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.WfbBandwidth, value.ToString());
+    }
+    
     private void SubscribeToEvents()
     {
-        // EventSubscriptionService.Subscribe<WfbYamlContentUpdatedEvent, WfbYamlContentUpdatedMessage>(
-        //     OnWfbYamlContentUpdated);
+        EventSubscriptionService.Subscribe<WfbYamlContentUpdatedEvent, WfbYamlContentUpdatedMessage>(
+            OnWfbYamlContentUpdated);
         
         EventSubscriptionService.Subscribe<WfbConfContentUpdatedEvent, WfbConfContentUpdatedMessage>(
             OnWfbConfContentUpdated);
@@ -121,12 +180,13 @@ public partial class WfbTabViewModel : ViewModelBase
         ParseWfbConfContent();
     }
     
-    // private void OnWfbYamlContentUpdated(WfbYamlContentUpdatedMessage message)
-    // {
-    //     //WfbContent = message.Content;
-    //     //ParseWfbConfContent();
-    //     //TODO
-    // }
+    private void OnWfbYamlContentUpdated(WfbYamlContentUpdatedMessage message)
+    {
+        WfbYamlContent = message.Content;
+        _yamlConfigService.ParseYaml(message.Content, _yamlConfig);
+        ParseWfbYamlContent();
+        
+    }
 
     private void OnAppMessage(AppMessage message)
     {
@@ -152,17 +212,33 @@ public partial class WfbTabViewModel : ViewModelBase
     #endregion
 
     #region Command Handlers
-    private async void RestartWfb()
+
+    private async Task updateWfbConfContent()
     {
         UpdateUIMessage("Restarting WFB...");
         EventSubscriptionService.Publish<TabMessageEvent, string>("Restart Pushed");
 
+        var power58GHz = 0;
+        var power24GHz = 0;
+        
+        //wfb.conf has seperate values for 2.4ghz and 5ghz 
+        if (SelectedChannel < 30)
+        {
+            // 2.4
+            power24GHz = SelectedPower;
+        }
+        else
+        {
+            // 5.8
+            power58GHz = SelectedPower;
+        }
+        
         var updatedWfbConfContent = UpdateWfbConfContent(
             WfbConfContent,
             SelectedFrequency58String,
             SelectedFrequency24String,
-            SelectedPower,
-            SelectedPower24GHz,
+            power58GHz,
+            power24GHz,
             SelectedBandwidth,
             SelectedMcsIndex,
             SelectedStbc,
@@ -187,9 +263,95 @@ public partial class WfbTabViewModel : ViewModelBase
         await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.WfbRestartCommand);
         UpdateUIMessage("Restarting Wfb..done");
     }
+    
+    /**
+     * Take the updated yaml content and upload it to the device
+     */
+    private async void RestartWfb()
+    {
+
+        //if wfb.yaml, save that part and restart
+        if (_globalSettingsService.IsWfbYamlEnabled)
+        {
+            Log.Information("Saving wfb.yaml...");
+            
+            try
+            {
+                var updatedYamlContent = _yamlConfigService.UpdateYaml(_yamlConfig);
+                
+                await SshClientService.UploadFileStringAsync(
+                    DeviceConfig.Instance,
+                    OpenIPC.WfbYamlFileLoc,
+                    updatedYamlContent);
+
+                SshClientService.ExecuteCommandAsync(
+                    DeviceConfig.Instance,
+                    DeviceCommands.WfbRestartCommand);
+
+                Logger.Information("wfb.yaml configuration updated and service is restarting.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Error("Failed to update Wfb.yaml configuration: {ExceptionMessage}", ex.Message);
+                return;
+            }
+            
+        }
+        else
+        {
+            Log.Information("Saving legacy wfb.conf...");
+            await updateWfbConfContent();
+        }
+    }
     #endregion
 
     #region Helper Methods
+
+    private void ParseWfbYamlContent()
+    {
+        Debug.WriteLine("ParseWfbYamlContent");
+        UpdateViewModelPropertiesFromYaml();
+    }
+    
+    private void UpdateViewModelPropertiesFromYaml()
+    {
+        if (_yamlConfig.TryGetValue(WfbYaml.WfbChannel, out var channel)) HandleFrequencyKey(channel);
+
+        if (_yamlConfig.TryGetValue(WfbYaml.WfbTxPower, out var power))
+        {
+            SelectedPower = TryParseInt(power, SelectedPower);    
+        }
+
+        if (_yamlConfig.TryGetValue(WfbYaml.WfbBandwidth, out var bandwidth))
+        {
+            SelectedBandwidth = TryParseInt(bandwidth, SelectedBandwidth);
+        }
+
+        if (_yamlConfig.TryGetValue(WfbYaml.BroadcastMcsIndex, out var wfbIndex))
+        {
+            SelectedMcsIndex = TryParseInt(wfbIndex, SelectedMcsIndex);
+        }
+        
+        if (_yamlConfig.TryGetValue(WfbYaml.BroadcastFecK, out var fecK))
+        {
+            SelectedFecK = TryParseInt(fecK, SelectedFecK);
+        }
+        
+        if (_yamlConfig.TryGetValue(WfbYaml.BroadcastFecN, out var fecN))
+        {
+            SelectedFecN = TryParseInt(fecN, SelectedFecN);
+        }
+        
+        if (_yamlConfig.TryGetValue(WfbYaml.BroadcastLdpc, out var ldpc))
+        {
+            SelectedLdpc = TryParseInt(ldpc, SelectedLdpc);
+        }
+        
+        if (_yamlConfig.TryGetValue(WfbYaml.BroadcastStbc, out var stbc))
+        {
+            SelectedStbc = TryParseInt(stbc, SelectedStbc);
+        }
+    }
     private void ParseWfbConfContent()
     {
         if (string.IsNullOrEmpty(WfbConfContent))
@@ -218,10 +380,12 @@ public partial class WfbTabViewModel : ViewModelBase
                 HandleFrequencyKey(value);
                 break;
             case Wfb.Txpower:
-                SelectedPower24GHz = TryParseInt(value, SelectedPower24GHz);
+                if(SelectedChannel < 30)
+                    SelectedPower = TryParseInt(value, SelectedPower);
                 break;
             case Wfb.DriverTxpowerOverride:
-                SelectedPower = TryParseInt(value, SelectedPower);
+                if(SelectedChannel > 30)
+                    SelectedPower = TryParseInt(value, SelectedPower);
                 break;
             case Wfb.Bandwidth:
                 SelectedBandwidth = TryParseInt(value, SelectedBandwidth);
@@ -273,12 +437,12 @@ public partial class WfbTabViewModel : ViewModelBase
         if (frequencyMapping == _24FrequencyMapping)
         {
             SelectedFrequency58String = Frequencies58GHz.FirstOrDefault();
-            SelectedPower = Power58GHz.FirstOrDefault();
+            //SelectedPower = Power58GHz.FirstOrDefault();
         }
         else if (frequencyMapping == _58FrequencyMapping)
         {
             SelectedFrequency24String = Frequencies24GHz.FirstOrDefault();
-            SelectedPower24GHz = Power24GHz.FirstOrDefault();
+            //SelectedPower = Power24GHz.FirstOrDefault();
         }
 
         // Extract the channel number
@@ -325,6 +489,17 @@ public partial class WfbTabViewModel : ViewModelBase
                 _ => match.Value
             };
         });
+    }
+    
+    public void UpdateYamlConfig(string key, string newValue)
+    {
+        if (_yamlConfig.ContainsKey(key))
+            _yamlConfig[key] = newValue;
+        else
+            _yamlConfig.Add(key, newValue);
+
+        if (string.IsNullOrEmpty(newValue))
+            _yamlConfig.Remove(key);
     }
     #endregion
 }

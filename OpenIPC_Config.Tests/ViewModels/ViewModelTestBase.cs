@@ -1,6 +1,7 @@
 using Moq;
 using OpenIPC_Config.Events;
 using OpenIPC_Config.Services;
+using OpenIPC_Config.ViewModels;
 using Serilog;
 
 namespace OpenIPC_Config.Tests.ViewModels;
@@ -17,6 +18,8 @@ public abstract class ViewModelTestBase
     protected Mock<IEventAggregator> EventAggregatorMock { get; private set; }
     protected Mock<ISshClientService> SshClientServiceMock { get; private set; }
     protected Mock<IYamlConfigService> YamlConfigServiceMock { get; private set; }
+    
+    protected Mock<IGlobalSettingsService> GlobalSettingsServiceMock { get; private set; }
 
     protected Mock<IEventSubscriptionService> EventSubscriptionServiceMock { get; private set; }
 
@@ -34,6 +37,7 @@ public abstract class ViewModelTestBase
         MajesticContentUpdatedEventMock = new Mock<MajesticContentUpdatedEvent>();
         YamlConfigServiceMock = new Mock<IYamlConfigService>();
         EventSubscriptionServiceMock = new Mock<IEventSubscriptionService>();
+        GlobalSettingsServiceMock = new Mock<IGlobalSettingsService>();
 
         EventAggregatorMock
             .Setup(x => x.GetEvent<WfbConfContentUpdatedEvent>())

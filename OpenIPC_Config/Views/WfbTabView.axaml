@@ -3,11 +3,17 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:OpenIPC_Config.ViewModels"
+             xmlns:converters="clr-namespace:OpenIPC_Config.Converters"
              xmlns:assets="clr-namespace:OpenIPC_Config.Assets"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="550"
              x:Class="OpenIPC_Config.Views.WfbTabView"
              x:DataType="vm:WfbTabViewModel">
-
+    
+    <!-- Add resources section with the converter -->
+    <UserControl.Resources>
+        <converters:PowerThresholdColorConverter x:Key="PowerColorConverter" Threshold="25" />
+        <converters:BooleanGreaterThanConverter x:Key="BooleanGreaterThanConverter" />
+    </UserControl.Resources>
     
     <Panel>
 
@@ -65,25 +71,26 @@
                 
                 <Label Grid.Column="0" Grid.Row="0" Content="5.8GHz Frequency"
                        ToolTip.Tip="{x:Static assets:Resources.Select58GHzFrequencyToolTip}" />
-                <Label Grid.Column="2" Grid.Row="0" Content="5.8G TX Power"
-                       ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" />
                 <Label Grid.Column="0" Grid.Row="1" Content="2.4GHz Frequency"
                        ToolTip.Tip="{x:Static assets:Resources.Select24GHzFrequencyToolTip}" />
-                <Label Grid.Column="2" Grid.Row="1" Content="2.4G TX Power"
-                       ToolTip.Tip="{x:Static assets:Resources.Select24GHzPowerToolTip}" />
-                <Label Grid.Column="0" Grid.Row="2" Content="MCS"
+                <Label Grid.Column="0" Grid.Row="2" Content="TX Power"
+                       ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" />
+
+                <!-- <Label Grid.Column="2" Grid.Row="1" Content="2.4G TX Power" -->
+                <!--        ToolTip.Tip="{x:Static assets:Resources.Select24GHzPowerToolTip}" /> -->
+                <Label Grid.Column="0" Grid.Row="3" Content="MCS"
                        ToolTip.Tip="{x:Static assets:Resources.SelectMCSIndexToolTip}" />
-                <Label Grid.Column="0" Grid.Row="3" Content="FEC K"
+                <Label Grid.Column="0" Grid.Row="4" Content="FEC K"
                        ToolTip.Tip="{x:Static assets:Resources.SelectFecKToolTip}" />
-                <Label Grid.Column="0" Grid.Row="4" Content="FEC N"
+                <Label Grid.Column="0" Grid.Row="5" Content="FEC N"
                        ToolTip.Tip="{x:Static assets:Resources.SelectFecNToolTip}" />
 
-                <Label Grid.Column="0" Grid.Row="5" Content="STBC"
+                <Label Grid.Column="0" Grid.Row="6" Content="STBC"
                        ToolTip.Tip="{x:Static assets:Resources.SelectStbcToolTip}" />
-                <Label Grid.Column="0" Grid.Row="6" Content="LDPC"
+                <Label Grid.Column="0" Grid.Row="7" Content="LDPC"
                        ToolTip.Tip="{x:Static assets:Resources.SelectLdpcToolTip}" />
                 
-                <Label Grid.Column="0" Grid.Row="7" Content="Bandwidth"
+                <Label Grid.Column="0" Grid.Row="8" Content="Bandwidth"
                        ToolTip.Tip="{x:Static assets:Resources.SelectBandwithToolTip}" />
                 
                 
@@ -98,20 +105,51 @@
                 <!--           ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" -->
                 <!--           ItemsSource="{Binding Power58GHz}" -->
                 <!--           SelectedItem="{Binding SelectedPower, Mode=TwoWay}" /> -->
-                <StackPanel Grid.Column="3" Grid.Row="0" Orientation="Horizontal" Spacing="5"
+                <!-- <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Spacing="5" -->
+                <!--             IsEnabled="{Binding CanConnect}"> -->
+                <!--       -->
+                <!--     <Slider MinWidth="150" -->
+                <!--             Maximum="{Binding MaxPower58GHz}" Minimum="0" -->
+                <!--             VerticalAlignment="Center" -->
+                <!--             IsSnapToTickEnabled="True" -->
+                <!--             TickPlacement="BottomRight" -->
+                <!--             TickFrequency="5" -->
+                <!--             Value="{Binding SelectedPower}"  -->
+                <!--             ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" /> -->
+                <!--     <Border Height="20" Width="25" Classes="BoxShadow" CornerRadius="8"> -->
+                <!--     <Label HorizontalContentAlignment="Center" Content="{Binding SelectedPower}"/> -->
+                <!--     </Border> -->
+                <!-- </StackPanel> -->
+                <StackPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Spacing="5"
                             IsEnabled="{Binding CanConnect}">
-                     
+    
                     <Slider MinWidth="150"
                             Maximum="{Binding MaxPower58GHz}" Minimum="0"
                             VerticalAlignment="Center"
                             IsSnapToTickEnabled="True"
                             TickPlacement="BottomRight"
-                            TickFrequency="5"
+                            TickFrequency="3"
                             Value="{Binding SelectedPower}" 
                             ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" />
+                            <!-- Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}" /> -->
+    
                     <Border Height="20" Width="25" Classes="BoxShadow" CornerRadius="8">
-                    <Label HorizontalContentAlignment="Center" Content="{Binding SelectedPower}"/>
+                        <!-- <Label HorizontalContentAlignment="Center"  -->
+                        <!--        Content="{Binding SelectedPower}"  -->
+                        <!--        Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}"/> -->
+                        <Label HorizontalContentAlignment="Center"
+                               Content="{Binding SelectedPower}"
+                               />
                     </Border>
+    
+                    <!-- Warning icon that only appears when above threshold -->
+                    <!-- <Panel Width="20" Height="20"  -->
+                    <!--        IsVisible="{Binding SelectedPower, Converter={StaticResource BooleanGreaterThanConverter}, ConverterParameter=25}"> -->
+                    <!--     <Ellipse Fill="Red" Width="20" Height="20" /> -->
+                    <!--     <TextBlock Text="!" FontWeight="Bold" Foreground="White"  -->
+                    <!--                HorizontalAlignment="Center" VerticalAlignment="Center" -->
+                    <!--                ToolTip.Tip="Power exceeds recommended level" /> -->
+                    <!-- </Panel> -->
                 </StackPanel>
                 
                 <ComboBox Grid.Column="1" Grid.Row="1"
@@ -122,35 +160,35 @@
                           ItemsSource="{Binding Frequencies24GHz}"
                           SelectedItem="{Binding SelectedFrequency24String, Mode=TwoWay}" />
 
-                <StackPanel Grid.Column="3" Grid.Row="1" Orientation="Horizontal" Spacing="5" 
-                            IsEnabled="{Binding CanConnect}">
-                     
-                    <Slider MinWidth="150"
-                            Maximum="{Binding MaxPower58GHz}" Minimum="0"
-                            IsSnapToTickEnabled="True"
-                            TickPlacement="BottomRight"
-                            TickFrequency="5"
-                            Value="{Binding SelectedPower24GHz}" 
-                            ToolTip.Tip="{x:Static assets:Resources.Select24GHzPowerToolTip}" />
-                    <Border Height="20" Width="25" Classes="BoxShadow" CornerRadius="8">
-                    <Label HorizontalContentAlignment="Center" 
-                           Content="{Binding SelectedPower24GHz}"/>
-                    </Border>
-                </StackPanel>
+                <!-- <StackPanel Grid.Column="3" Grid.Row="1" Orientation="Horizontal" Spacing="5"  -->
+                <!--             IsEnabled="{Binding CanConnect}"> -->
+                <!--       -->
+                <!--     <Slider MinWidth="150" -->
+                <!--             Maximum="{Binding MaxPower58GHz}" Minimum="0" -->
+                <!--             IsSnapToTickEnabled="True" -->
+                <!--             TickPlacement="BottomRight" -->
+                <!--             TickFrequency="5" -->
+                <!--             Value="{Binding SelectedPower24GHz}"  -->
+                <!--             ToolTip.Tip="{x:Static assets:Resources.Select24GHzPowerToolTip}" /> -->
+                <!--     <Border Height="20" Width="25" Classes="BoxShadow" CornerRadius="8"> -->
+                <!--     <Label HorizontalContentAlignment="Center"  -->
+                <!--            Content="{Binding SelectedPower24GHz}"/> -->
+                <!--     </Border> -->
+                <!-- </StackPanel> -->
                 
-                <ComboBox Grid.Column="1" Grid.Row="2" ToolTip.Tip="{x:Static assets:Resources.SelectMCSIndexToolTip}"
+                <ComboBox Grid.Column="1" Grid.Row="3" ToolTip.Tip="{x:Static assets:Resources.SelectMCSIndexToolTip}"
                           IsEnabled="{Binding CanConnect}"
                           Classes="WfbComboBox"
                           ItemsSource="{Binding McsIndex}"
                           SelectedItem="{Binding SelectedMcsIndex, Mode=TwoWay}" />
 
-                <ComboBox Grid.Column="1" Grid.Row="3" ToolTip.Tip="{x:Static assets:Resources.SelectFecKToolTip}"
+                <ComboBox Grid.Column="1" Grid.Row="4" ToolTip.Tip="{x:Static assets:Resources.SelectFecKToolTip}"
                           IsEnabled="{Binding CanConnect}"
                           Classes="WfbComboBox"
                           ItemsSource="{Binding FecK}"
                           SelectedItem="{Binding SelectedFecK, Mode=TwoWay}" />
                 
-                <ComboBox Grid.Column="1" Grid.Row="4" ToolTip.Tip="{x:Static assets:Resources.SelectFecNToolTip}"
+                <ComboBox Grid.Column="1" Grid.Row="5" ToolTip.Tip="{x:Static assets:Resources.SelectFecNToolTip}"
                           IsEnabled="{Binding CanConnect}"
                           Classes="WfbComboBox"
                           ItemsSource="{Binding FecN}"
@@ -162,21 +200,21 @@
                 <!--           ItemsSource="{Binding Stbc}" -->
                 <!--           SelectedItem="{Binding SelectedStbc, Mode=TwoWay}" /> -->
 
-                <ToggleSwitch Grid.Column="1" Grid.Row="5"
+                <ToggleSwitch Grid.Column="1" Grid.Row="6"
                               IsEnabled="{Binding CanConnect}"
                               Margin="5,0,0,0"
                               OnContent="" OffContent=""
                               IsChecked="{Binding SelectedStbc, Mode=TwoWay}"
                               ToolTip.Tip="{x:Static assets:Resources.SelectStbcToolTip}" />
 
-                <ToggleSwitch Grid.Column="1" Grid.Row="6"
+                <ToggleSwitch Grid.Column="1" Grid.Row="7"
                               IsEnabled="{Binding CanConnect}"
                               Margin="5,0,0,0"
                               OnContent="" OffContent=""
                               IsChecked="{Binding SelectedLdpc, Mode=TwoWay}"
                               ToolTip.Tip="{x:Static assets:Resources.SelectLdpcToolTip}" />
 
-                <ComboBox Grid.Column="1" Grid.Row="7" ToolTip.Tip="{x:Static assets:Resources.SelectBandwithToolTip}"
+                <ComboBox Grid.Column="1" Grid.Row="8" ToolTip.Tip="{x:Static assets:Resources.SelectBandwithToolTip}"
                           IsEnabled="{Binding CanConnect}"
                           Classes="WfbComboBox"
                           ItemsSource="{Binding Bandwidth}"
@@ -184,7 +222,7 @@
                 
 
                 
-                <Button Grid.Column="0" HorizontalAlignment="Left" Grid.Row="10"
+                <Button Grid.Column="0" HorizontalAlignment="Left" Grid.Row="9"
                         Content="{x:Static assets:Resources.btnSaveAndRestartWfbText}"
                         Command="{Binding RestartWfbCommand}"
                         IsEnabled="{Binding CanConnect}" />

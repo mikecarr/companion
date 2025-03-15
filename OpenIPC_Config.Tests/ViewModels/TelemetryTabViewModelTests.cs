@@ -10,6 +10,15 @@ namespace OpenIPC_Config.Tests.ViewModels;
 [TestFixture]
 public class TelemetryTabViewModelTests
 {
+    private Mock<ILogger> _mockLogger;
+    private Mock<ISshClientService> _mockSshClientService;
+    private Mock<IEventSubscriptionService> _mockEventSubscriptionService;
+    private TelemetryTabViewModel _viewModel;
+    private Mock<IMessageBoxService> _mockMessageBoxService;
+    private Mock<IYamlConfigService> _mockYamlConfigService;
+    private Mock<IGlobalSettingsService> _mockGlobalSettingsService;
+
+    
     [SetUp]
     public void SetUp()
     {
@@ -17,23 +26,23 @@ public class TelemetryTabViewModelTests
         _mockSshClientService = new Mock<ISshClientService>();
         _mockEventSubscriptionService = new Mock<IEventSubscriptionService>();
         _mockMessageBoxService = new Mock<IMessageBoxService>();
-
+        _mockYamlConfigService = new Mock<IYamlConfigService>();
+        _mockGlobalSettingsService = new Mock<IGlobalSettingsService>();
+        
+            
         _viewModel = new TelemetryTabViewModel(
             _mockLogger.Object,
             _mockSshClientService.Object,
             _mockEventSubscriptionService.Object,
-            _mockMessageBoxService.Object
+            _mockMessageBoxService.Object,
+            _mockYamlConfigService.Object,
+            _mockGlobalSettingsService.Object
         );
 
         // Initialize default telemetry content
         _viewModel.TelemetryContent = "serial=/dev/ttyS0\nbaud=9600\nrouter=1\nmcs_index=5\naggregate=4\nchannels=3";
     }
 
-    private Mock<ILogger> _mockLogger;
-    private Mock<ISshClientService> _mockSshClientService;
-    private Mock<IEventSubscriptionService> _mockEventSubscriptionService;
-    private TelemetryTabViewModel _viewModel;
-    private Mock<IMessageBoxService> _mockMessageBoxService;
 
 
     [Test]
@@ -42,7 +51,7 @@ public class TelemetryTabViewModelTests
         Assert.IsNotNull(_viewModel.SerialPorts);
         Assert.IsNotNull(_viewModel.BaudRates);
         Assert.IsNotNull(_viewModel.McsIndex);
-        Assert.AreEqual("/dev/ttyS0", _viewModel.SerialPorts[0]);
+        Assert.AreEqual("ttyS0", _viewModel.SerialPorts[0]);
         Assert.AreEqual("4800", _viewModel.BaudRates[0]);
         Assert.AreEqual("0", _viewModel.McsIndex[0]);
     }
@@ -58,9 +67,9 @@ public class TelemetryTabViewModelTests
         _viewModel.HandleTelemetryContentUpdated(message);
 
         // Assert
-        Assert.AreEqual("/dev/ttyS0", _viewModel.SelectedSerialPort);
+        Assert.AreEqual("ttyS0", _viewModel.SelectedSerialPort);
         Assert.AreEqual("9600", _viewModel.SelectedBaudRate);
-        Assert.AreEqual("1", _viewModel.SelectedRouter);
+        Assert.AreEqual("mavlink-routed", _viewModel.SelectedRouter);
         Assert.AreEqual("3", _viewModel.SelectedMcsIndex);
     }
 
