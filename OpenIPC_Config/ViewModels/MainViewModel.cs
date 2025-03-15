@@ -433,10 +433,14 @@ public partial class MainViewModel : ViewModelBase
 
         if (_deviceConfig != null)
         {
+            // used to update the ui for the different views
+            EventSubscriptionService.Publish<DeviceTypeChangeEvent, DeviceType>(_deviceConfig.DeviceType);
+            
             if (_deviceConfig.DeviceType == DeviceType.Camera)
             {
                 UpdateUIMessage("Processing Camera...");
                 processCameraFiles();
+                
                 UpdateUIMessage("Processing Camera...done");
             }
             else if (_deviceConfig.DeviceType == DeviceType.Radxa)
