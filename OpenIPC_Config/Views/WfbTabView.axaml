@@ -128,25 +128,28 @@
                             VerticalAlignment="Center"
                             IsSnapToTickEnabled="True"
                             TickPlacement="BottomRight"
-                            TickFrequency="5"
+                            TickFrequency="3"
                             Value="{Binding SelectedPower}" 
-                            ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" 
-                            Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}" />
+                            ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" />
+                            <!-- Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}" /> -->
     
                     <Border Height="20" Width="25" Classes="BoxShadow" CornerRadius="8">
-                        <Label HorizontalContentAlignment="Center" 
-                               Content="{Binding SelectedPower}" 
-                               Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}"/>
+                        <!-- <Label HorizontalContentAlignment="Center"  -->
+                        <!--        Content="{Binding SelectedPower}"  -->
+                        <!--        Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}"/> -->
+                        <Label HorizontalContentAlignment="Center"
+                               Content="{Binding SelectedPower}"
+                               />
                     </Border>
     
                     <!-- Warning icon that only appears when above threshold -->
-                    <Panel Width="20" Height="20" 
-                           IsVisible="{Binding SelectedPower, Converter={StaticResource BooleanGreaterThanConverter}, ConverterParameter=25}">
-                        <Ellipse Fill="Red" Width="20" Height="20" />
-                        <TextBlock Text="!" FontWeight="Bold" Foreground="White" 
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   ToolTip.Tip="Power exceeds recommended level" />
-                    </Panel>
+                    <!-- <Panel Width="20" Height="20"  -->
+                    <!--        IsVisible="{Binding SelectedPower, Converter={StaticResource BooleanGreaterThanConverter}, ConverterParameter=25}"> -->
+                    <!--     <Ellipse Fill="Red" Width="20" Height="20" /> -->
+                    <!--     <TextBlock Text="!" FontWeight="Bold" Foreground="White"  -->
+                    <!--                HorizontalAlignment="Center" VerticalAlignment="Center" -->
+                    <!--                ToolTip.Tip="Power exceeds recommended level" /> -->
+                    <!-- </Panel> -->
                 </StackPanel>
                 
                 <ComboBox Grid.Column="1" Grid.Row="1"

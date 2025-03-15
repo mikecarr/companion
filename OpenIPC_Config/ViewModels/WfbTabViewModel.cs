@@ -59,8 +59,8 @@ public partial class WfbTabViewModel : ViewModelBase
     [ObservableProperty] private ObservableCollection<int> _ldpc;
     [ObservableProperty] private ObservableCollection<int> _fecK;
     [ObservableProperty] private ObservableCollection<int> _fecN;
-    [ObservableProperty] private int _maxPower58GHz = 50;
-    [ObservableProperty] private int _maxPower24GHz = 50;
+    [ObservableProperty] private int _maxPower58GHz = 63;
+    [ObservableProperty] private int _maxPower24GHz = 63;
     #endregion
 
     #region Commands
@@ -103,8 +103,8 @@ public partial class WfbTabViewModel : ViewModelBase
         Frequencies58GHz = new ObservableCollectionExtended<string>(_58FrequencyMapping.Values);
         Frequencies24GHz = new ObservableCollectionExtended<string>(_24FrequencyMapping.Values);
 
-        Power58GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower58GHz).Select(i => (i * 5)));
-        Power24GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower24GHz).Select(i => (i * 5)));
+        Power58GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower58GHz).Select(i => (i * 3)));
+        Power24GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower24GHz).Select(i => (i * 3)));
 
         Bandwidth = new ObservableCollectionExtended<int> { 20, 40 };
         McsIndex = new ObservableCollectionExtended<int>(Enumerable.Range(1, 31));
@@ -122,46 +122,45 @@ public partial class WfbTabViewModel : ViewModelBase
 
     partial void OnSelectedChannelChanged(int value)
     {
-        Logger.Debug($"SelectedChannelChanged updated to {value}");
+        Logger.Verbose($"SelectedChannelChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.WfbChannel, value.ToString());
     }
     partial void OnSelectedPowerChanged(int value)
     {
-        Logger.Debug($"SelectedPowerChanged updated to {value}");
+        Logger.Verbose($"SelectedPowerChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.WfbTxPower, value.ToString());
     }
     partial void OnSelectedMcsIndexChanged(int value)
     {
-        Logger.Debug($"SelectedMcsIndexStringChanged updated to {value}");
+        Logger.Verbose($"SelectedMcsIndexStringChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.BroadcastMcsIndex, value.ToString());
     }
     partial void OnSelectedFecKChanged(int value)
     {
-        Logger.Debug($"SelectedFecKChanged updated to {value}");
+        Logger.Verbose($"SelectedFecKChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.BroadcastFecK, value.ToString());
     }
     partial void OnSelectedFecNChanged(int value)
     {
-        Logger.Debug($"SelectedFecNChanged updated to {value}");
+        Logger.Verbose($"SelectedFecNChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.BroadcastFecN, value.ToString());
     }
     partial void OnSelectedLdpcChanged(int value)
     {
-        Logger.Debug($"SelectedLdpcChanged updated to {value}");
+        Logger.Verbose($"SelectedLdpcChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.BroadcastLdpc, value.ToString());
     }
     partial void OnSelectedStbcChanged(int value)
     {
-        Logger.Debug($"SelectedStbcChanged updated to {value}");
+        Logger.Verbose($"SelectedStbcChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.BroadcastStbc, value.ToString());
     }
     
     partial void OnSelectedBandwidthChanged(int value)
     {
-        Logger.Debug($"SelectedBandwidthChanged updated to {value}");
+        Logger.Verbose($"SelectedBandwidthChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.WfbBandwidth, value.ToString());
     }
-    
     
     private void SubscribeToEvents()
     {
