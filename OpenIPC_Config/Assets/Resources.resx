@@ -289,4 +289,11 @@ Add OSD SOC Temperature</value>
     <data name="TelemetryMSPFpsToolTip" xml:space="preserve">
         <value>MSP OSD Fps (Frames per second)</value>
     </data>
+    <data name="FirmwareChoiceToolTip" xml:space="preserve">
+        <value>The hardware detected on your device can have multiple variants. Select the type of your device</value>
+    </data>
+
+    <data name="FirmwareLocalToolTip" xml:space="preserve">
+        <value>If you have downlaoded firmware locally, select the file here</value>
+    </data>
 </root>

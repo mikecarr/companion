@@ -330,6 +330,15 @@ namespace OpenIPC_Config.Assets {
         {
             get { return ResourceManager.GetString("TelemetryMSPFpsToolTip", resourceCulture); }
         }
+        
+        public static string FirmwareChoiceToolTip
+        {
+            get { return ResourceManager.GetString("FirmwareChoiceToolTip", resourceCulture); }
+        }
+        public static string FirmwareLocalToolTip
+        {
+            get { return ResourceManager.GetString("FirmwareLocalToolTip", resourceCulture); }
+        }
 
     }
 }
