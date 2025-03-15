@@ -433,6 +433,9 @@ public partial class MainViewModel : ViewModelBase
 
         if (_deviceConfig != null)
         {
+            // used to update the ui for the different views
+            EventSubscriptionService.Publish<DeviceTypeChangeEvent, DeviceType>(_deviceConfig.DeviceType);
+            
             if (_deviceConfig.DeviceType == DeviceType.Camera)
             {
                 UpdateUIMessage("Processing Camera...");
@@ -698,39 +701,46 @@ public partial class MainViewModel : ViewModelBase
                 throw;
             }
 
-            try
-            {
-                // get /home/radxa/scripts/screen-mode
-                var droneKeyContent =
-                    await SshClientService.DownloadFileBytesAsync(_deviceConfig, OpenIPC.RemoteDroneKeyPath);
-
-
-                if (droneKeyContent != null)
-                {
-                    //byte[] fileBytes = Encoding.UTF8.GetBytes(droneKeyContent);
-
-                    var droneKey = Utilities.ComputeMd5Hash(droneKeyContent);
-
-                    var deviceContentUpdatedMessage = new DeviceContentUpdatedMessage();
-                    _deviceConfig = DeviceConfig.Instance;
-                    _deviceConfig.KeyChksum = droneKey;
-                    deviceContentUpdatedMessage.DeviceConfig = _deviceConfig;
-
-                    EventSubscriptionService.Publish<DeviceContentUpdateEvent,
-                        DeviceContentUpdatedMessage>(deviceContentUpdatedMessage);
-                }
-            }
-            catch (Exception e)
-            {
-                Log.Error(e.Message);
-                throw;
-            }
+            
         }
 
+        await GetAndComputeAirMd5Hash();
+        
         EventSubscriptionService.Publish<AppMessageEvent,
             AppMessage>(new AppMessage { CanConnect = DeviceConfig.Instance.CanConnect, DeviceConfig = _deviceConfig });
 
         Log.Information("Done reading files from device.");
+    }
+
+    private async Task GetAndComputeAirMd5Hash()
+    {
+        try
+        {
+            // get /home/radxa/scripts/screen-mode
+            var droneKeyContent =
+                await SshClientService.DownloadFileBytesAsync(_deviceConfig, OpenIPC.RemoteDroneKeyPath);
+
+
+            if (droneKeyContent != null)
+            {
+                //byte[] fileBytes = Encoding.UTF8.GetBytes(droneKeyContent);
+
+                var droneKey = Utilities.ComputeMd5Hash(droneKeyContent);
+
+                var deviceContentUpdatedMessage = new DeviceContentUpdatedMessage();
+                _deviceConfig = DeviceConfig.Instance;
+                _deviceConfig.KeyChksum = droneKey;
+                deviceContentUpdatedMessage.DeviceConfig = _deviceConfig;
+
+                EventSubscriptionService.Publish<DeviceContentUpdateEvent,
+                    DeviceContentUpdatedMessage>(deviceContentUpdatedMessage);
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Error(e.Message);
+            throw;
+        }
     }
 
     private async void processRadxaFiles()
