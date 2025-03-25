@@ -257,9 +257,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
     {
         UpdateUIMessage("Adding MAVLink...");
         await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, TelemetryCommands.Extra);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.RebootCommand);
-        
-        _messageBoxService.ShowMessageBox("Rebooting Device!", "Rebooting device, please wait for device to be ready and reconnect, the validate settings.!");
+        await RebootDevice();
     }
 
     private async void UploadLatestVtxMenu()
@@ -273,9 +271,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
         await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, "dos2unix /etc/vtxmenu.ini");
 
         // reboot
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.RebootCommand);
-
-        _messageBoxService.ShowMessageBox("Rebooting Device!", "Rebooting device, please wait for device to be ready and reconnect, the validate settings.!");
+        await RebootDevice();
     }
 
     private async void Enable40Mhz()
@@ -344,11 +340,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
                     OpenIPC.WfbYamlFileLoc,
                     updatedYamlContent);
 
-                SshClientService.ExecuteCommandAsync(
-                    DeviceConfig.Instance,
-                    DeviceCommands.RebootCommand);
-                
-                _messageBoxService.ShowMessageBox("Rebooting Device!", "Rebooting device, please wait for device to be ready and reconnect, the validate settings.!");
+                await RebootDevice();
             }
             catch (Exception ex)
             {
@@ -366,12 +358,19 @@ public partial class TelemetryTabViewModel : ViewModelBase
                 SelectedMcsIndex, SelectedAggregate, SelectedRcChannel);
             await SshClientService.UploadFileStringAsync(DeviceConfig.Instance, OpenIPC.TelemetryConfFileLoc,
                 TelemetryContent);
-            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.RebootCommand);
             
-            _messageBoxService.ShowMessageBox("Rebooting Device!", "Rebooting device, please wait for device to be ready and reconnect, the validate settings.!");
+            await RebootDevice();
         }
         
     }
+
+    private async Task RebootDevice()
+    {
+        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.RebootCommand);
+
+        _messageBoxService.ShowMessageBox("Rebooting Device!", "Rebooting device, please wait for device to be ready and reconnect, then validate settings.");
+    }
+
     #endregion
 
     #region Helper Methods
