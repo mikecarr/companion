@@ -14,7 +14,7 @@ public class PresetIndex
     /// Version of the preset index format
     /// </summary>
     [YamlMember(Alias = "version")]
-    public int Version { get; set; }
+    public string Version { get; set; }
 
     /// <summary>
     /// Timestamp of when the index was last updated
