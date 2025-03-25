@@ -107,7 +107,7 @@ public class TelemetryTabViewModelTests
         _mockSshClientService.Verify(
             service => service.ExecuteCommandAsync(
                 It.IsAny<DeviceConfig>(),
-                DeviceCommands.TelemetryRestartCommand
+                DeviceCommands.RebootCommand
             ),
             Times.Once
         );
