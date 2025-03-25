@@ -65,10 +65,20 @@ public static class DeviceCommands
     // // "sed -i 's/echo \\\"Starting wifibroadcast service...\\\"/echo \\\"\\&L70 \\&F35 CPU:\\&C \\&B Temp:\\&T\\\" > \\/tmp\\/MSPOSD.msg /' /etc/init.d/S98datalink";
 
     public static string DataLinkRestart = "/etc/init.d/S98datalink stop ;/etc/init.d/S98datalink start";
-    
+
     public static string GetChipType = "fw_printenv soc | awk -F= '{print $2}'";
-    
+
     public static string GetSensorType = "fw_printenv sensor | awk -F= '{print $2}'";
-    
+
     public static string GetNetworkCardType = "lsusb";
+
+    // Improved command to add alink_drone if not present
+    public const string AddAlinkDroneToRcLocal = "grep -q \"alink_drone\" /etc/rc.local || sed -i '/^exit 0/i # Start alink drone service\\nalink_drone \\&\\n' /etc/rc.local";
+
+    // Improved command to remove both the service line and its comment
+    public const string RemoveAlinkDroneFromRcLocal = "sed -i '/# Start alink drone service/d; /alink_drone/d; /^$/d' /etc/rc.local";
+
+    // Command to check if enabled
+    public const string IsAlinkDroneEnabled = "grep -q \"alink_drone\" /etc/rc.local && echo \"true\" || echo \"false\"";
+
 }

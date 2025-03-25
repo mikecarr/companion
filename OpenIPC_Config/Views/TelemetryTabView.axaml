@@ -138,6 +138,16 @@
                         HorizontalAlignment="Right"
                         ToolTip.Tip="{x:Static assets:Resources.MSPOSDExtraRemovalToolTip}" />
 
+                <StackPanel Grid.Row="7" Grid.Column="3" Grid.ColumnSpan="4" Orientation="Horizontal" Margin="0,5,0,0">
+                    <TextBlock VerticalAlignment="Center" Margin="0,0,10,0">Alink Drone on Boot:</TextBlock>
+                    <RadioButton GroupName="grpAlinkDrone" Content="Enabled" 
+                                 IsChecked="{Binding IsAlinkDroneEnabled}" 
+                                 IsEnabled="{Binding CanConnect}" />
+                    <RadioButton GroupName="grpAlinkDrone" Content="Disabled" 
+                                 IsChecked="{Binding !IsAlinkDroneEnabled}" 
+                                 IsEnabled="{Binding CanConnect}"
+                                 Margin="10,0,0,0" />
+                </StackPanel>
 
                 <!-- ~1~ Onboard REC Toggle with RadioButtons @1@ -->
                 <!-- <ToggleSwitch Grid.Row="6" Grid.Column="4"  -->
