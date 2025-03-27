@@ -61,13 +61,18 @@ public class App : Application
         var configPath = GetConfigPath();
 
         // Create default settings if not present
-        //if (!File.Exists(configPath))
-        //{
+        if (!File.Exists(configPath))
+        {
             // create the file
             var defaultSettings = createDefaultAppSettings();
             File.WriteAllText(configPath, defaultSettings.ToString());
             Log.Information($"Default appsettings.json created at {configPath}");
-        //}
+        }
+        else
+        {
+            // Update existing settings with new sections if needed
+            UpdateExistingSettings(configPath);
+        }
 
         Console.WriteLine($"Loading configuration from: {configPath}");
         // Build configuration
@@ -77,6 +82,50 @@ public class App : Application
             .Build();
 
         return configuration;
+    }
+
+    private void UpdateExistingSettings(string configPath)
+    {
+        try
+        {
+            // Read existing settings
+            string json = File.ReadAllText(configPath);
+            JObject existingSettings = JObject.Parse(json);
+            
+            bool hasChanges = false;
+            
+            // Check if Presets section exists, add if missing
+            if (existingSettings["Presets"] == null)
+            {
+                existingSettings["Presets"] = new JObject(
+                    new JProperty("Repositories", 
+                        new JArray(
+                            new JObject(
+                                new JProperty("Url", "https://github.com/mikecarr/fpv-presets"),
+                                new JProperty("Branch", "master"),
+                                new JProperty("Description", "Official OpenIPC presets repository"),
+                                new JProperty("IsActive", true)
+                            )
+                        )
+                    )
+                );
+                hasChanges = true;
+                Log.Information("Added Presets section to existing settings");
+            }
+            
+            // Add more upgrade steps for other sections as needed
+            
+            // Save changes if needed
+            if (hasChanges)
+            {
+                File.WriteAllText(configPath, existingSettings.ToString());
+                Log.Information($"Updated existing settings at {configPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error updating existing settings: {ex.Message}");
+        }
     }
 
     private void ReconfigureLogger(IConfiguration configuration)
@@ -319,7 +368,6 @@ public class App : Application
 
     private JObject createDefaultAppSettings()
     {
-
         string logPath = Path.Combine(OpenIPC.AppDataConfigDirectory, "Logs", "configurator.log");
 
         // Create default settings
@@ -328,6 +376,20 @@ public class App : Application
                 new JObject(
                     new JProperty("LatestJsonUrl",
                         "https://github.com/OpenIPC/openipc-configurator/releases/latest/download/latest.json")
+                )
+            ),
+            new JProperty("Presets",
+                new JObject(
+                    new JProperty("Repositories", 
+                        new JArray(
+                            new JObject(
+                                new JProperty("Url", "https://github.com/mikecarr/fpv-presets"),
+                                new JProperty("Branch", "master"),
+                                new JProperty("Description", "Official OpenIPC presets repository"),
+                                new JProperty("IsActive", true)
+                            )
+                        )
+                    )
                 )
             ),
             new JProperty("Serilog",
