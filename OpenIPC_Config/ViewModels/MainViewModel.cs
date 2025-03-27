@@ -705,6 +705,30 @@ public partial class MainViewModel : ViewModelBase
         }
 
         await GetAndComputeAirMd5Hash();
+
+        var cts = new CancellationTokenSource(30000);
+        try
+        {
+            
+            var alinkDroneStatus = await SshClientService.ExecuteCommandWithResponseAsync(
+                DeviceConfig.Instance, DeviceCommands.IsAlinkDroneEnabled, cts.Token);
+
+            if (alinkDroneStatus != null)
+            {
+                var isEnabled = alinkDroneStatus.Result.Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
+
+                // Publish the status to the TelemetryTabViewModel
+                EventSubscriptionService.Publish<AlinkDroneStatusEvent, bool>(isEnabled);
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Error($"Error checking Alink Drone status: {e.Message}");
+        }
+        finally
+        {
+            cts.Dispose();
+        }
         
         EventSubscriptionService.Publish<AppMessageEvent,
             AppMessage>(new AppMessage { CanConnect = DeviceConfig.Instance.CanConnect, DeviceConfig = _deviceConfig });
