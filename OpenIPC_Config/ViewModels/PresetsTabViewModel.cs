@@ -207,8 +207,10 @@ public partial class PresetsTabViewModel : ViewModelBase
         // Create the directory if it doesn't exist
         if (!Directory.Exists(baseDir))
         {
-            Directory.CreateDirectory(baseDir);
+            Directory.Delete(baseDir);
         }
+        
+        Directory.CreateDirectory(baseDir);
         
         return baseDir;
     }
@@ -387,7 +389,7 @@ public partial class PresetsTabViewModel : ViewModelBase
     {
         if (Repositories.Count == 0)
         {
-            var repo = Repository.FromUrl("https://github.com/mikecarr/config-presets");
+            var repo = Repository.FromUrl("https://github.com/mikecarr/fpv-presets");
             repo.Branch = "master";
             repo.Description = "Official OpenIPC presets repository";
             Repositories.Add(repo);

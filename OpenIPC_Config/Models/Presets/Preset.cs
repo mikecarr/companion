@@ -23,6 +23,9 @@ public class Preset
     public string Description { get; set; } = string.Empty;
     public ObservableCollection<FileModification> FileModifications { get; set; } = new();
     
+    [YamlMember(Alias = "additional_files")] 
+    public List<string> AdditionalFiles { get; set; } = new();
+    
     /* States can be used for Official, Community, Untested, etc. */
     public string State { get; set; } = string.Empty;
     public string? Sensor { get; set; }
@@ -50,18 +53,18 @@ public class Preset
         }
 
         var deserializer = new DeserializerBuilder()
-            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .WithNamingConvention(UnderscoredNamingConvention.Instance) // Change to underscore convention
             .Build();
 
         var yamlContent = File.ReadAllText(configPath);
         var preset = deserializer.Deserialize<Preset>(yamlContent);
-        
+    
         // Set the folder path to the directory containing the config file
         preset.FolderPath = System.IO.Path.GetDirectoryName(configPath);
-        
+    
         // Initialize FileModifications from Files dictionary
         preset.InitializeFileModifications();
-        
+    
         return preset;
     }
 

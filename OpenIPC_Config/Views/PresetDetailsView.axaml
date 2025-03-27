@@ -42,6 +42,20 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
+            
+            <!-- Additional Files Section -->
+            <TextBlock Text="Additional Files:" FontWeight="Bold" Margin="0,10,0,0" 
+                       IsVisible="{Binding Preset.AdditionalFiles.Count}" />
+            <ItemsControl ItemsSource="{Binding Preset.AdditionalFiles}" 
+                         IsVisible="{Binding Preset.AdditionalFiles.Count}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border BorderBrush="LightBlue" BorderThickness="1" Padding="5" Margin="0,0,0,5">
+                            <TextBlock Text="{Binding}" />
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
     </Border>
     </ScrollViewer>
