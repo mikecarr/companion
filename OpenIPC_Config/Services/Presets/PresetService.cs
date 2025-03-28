@@ -27,6 +27,17 @@ public class PresetService : IPresetService
     private Preset _activePreset;
     private readonly string _presetsFolder;
 
+    // List of critical system files to ignore
+    private readonly HashSet<string> _criticalSystemFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "passwd",
+        "shadow",
+        "group",
+        "fstab",
+        "network/interfaces",
+        "hostname",
+        // Add any other critical system files here
+    };
 
     /// <summary>
     /// Initializes a new instance of PresetService
@@ -79,6 +90,13 @@ public class PresetService : IPresetService
                     {
                         _logger.Information($"Copying additional file: {fileName}");
 
+                        // Check if the file is a critical system file
+                        if (IsCriticalSystemFile(fileName))
+                        {
+                            _logger.Warning($"Skipping critical system file: {fileName}");
+                            continue;
+                        }
+                        
                         // Get the destination path on the device
                         string filePath = GetFilePathForName(fileName);
 
@@ -333,6 +351,21 @@ public class PresetService : IPresetService
 
     #region Private Helper Methods
 
+    /// <summary>
+    /// Checks if the given filename is a critical system file that should be ignored.
+    /// </summary>
+    /// <param name="fileName">The filename to check.</param>
+    /// <returns>True if the file is a critical system file; otherwise, false.</returns>
+    private bool IsCriticalSystemFile(string fileName)
+    {
+        // Remove leading "/etc/" if present for simpler matching
+        if (fileName.StartsWith("/etc/", StringComparison.OrdinalIgnoreCase))
+        {
+            fileName = fileName.Substring(5);  // Remove "/etc/"
+        }
+        return _criticalSystemFiles.Contains(fileName);
+    }
+    
     /// <summary>
     /// Maps a file name to its path on the device
     /// </summary>

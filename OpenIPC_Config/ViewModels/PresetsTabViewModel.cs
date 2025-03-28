@@ -199,20 +199,18 @@ public partial class PresetsTabViewModel : ViewModelBase
     #region Data Loading Methods
 
     /// <summary>
-    /// Gets a platform-independent temporary directory path
+    /// Gets a platform-independent temporary directory path WITHOUT deleting it
     /// </summary>
     private string GetTempPresetsDirectory(string repositoryName)
     {
         // Use the system's temp directory as a base
         string baseDir = Path.Combine(Path.GetTempPath(), "OpenIPC_Config", "Presets", repositoryName);
 
-        // Delete if exists, then create
-        if (Directory.Exists(baseDir))
+        // Just ensure the directory exists but don't delete it - let the GitHubPresetService handle cleaning
+        if (!Directory.Exists(baseDir))
         {
-            Directory.Delete(baseDir, true); // true to recursively delete contents
+            Directory.CreateDirectory(baseDir);
         }
-
-        Directory.CreateDirectory(baseDir);
 
         return baseDir;
     }
@@ -314,27 +312,22 @@ public partial class PresetsTabViewModel : ViewModelBase
         {
             try
             {
-                // Define temp presets directory for this repository
-                var localRepoPresetsDir = GetTempPresetsDirectory(repository.RepositoryName);
-                _logger.Information($"Using temp directory for {repository.Name}: {localRepoPresetsDir}");
+                _logger.Information($"Processing repository: {repository.Name}");
 
-                // Sync presets from the repository
+                // Don't create any directory here, just pass null to let the service handle it
                 var downloadedPresets = await _gitHubPresetService.SyncRepositoryPresetsAsync(
                     repository,
-                    localRepoPresetsDir
+                    null // Pass null to let GitHubPresetService handle directory creation
                 );
 
-                // Load the newly downloaded presets
+                // Process downloaded presets as before
                 foreach (var presetPath in downloadedPresets)
                 {
                     try
                     {
                         var preset = Preset.LoadFromFile(presetPath);
-
-                        // Ensure the preset files are loaded
                         await _presetService.LoadPresetFilesAsync(preset);
 
-                        // Avoid duplicates
                         if (!AllPresets.Any(p => p.Name == preset.Name && p.FolderPath == preset.FolderPath))
                         {
                             AllPresets.Add(preset);
@@ -770,6 +763,40 @@ public partial class PresetsTabViewModel : ViewModelBase
         Presets.Clear();
         foreach (var preset in filteredPresets)
             Presets.Add(preset);
+    }
+
+    // Add this method to ensure consistent repository name handling
+    private string SanitizeRepositoryName(Repository repository)
+    {
+        // Get the repository URL and extract owner and repo name
+        string repoUrl = repository.Url.TrimEnd('/');
+
+        // Extract the owner/repo part from the URL
+        string ownerRepo = repoUrl.Split('/').Skip(3).Take(2).Aggregate((a, b) => a + "/" + b);
+
+        // If we successfully extracted owner/repo, format it as owner-repo
+        if (ownerRepo.Contains("/"))
+        {
+            string[] parts = ownerRepo.Split('/');
+            string owner = parts[0];
+            string repo = parts[1];
+
+            // Replace owner/repo with owner-repo format
+            repoUrl = $"{owner}-{repo}";
+        }
+        else
+        {
+            // Fallback to repository name if we couldn't extract owner/repo
+            repoUrl = repository.RepositoryName;
+        }
+
+        // Remove any characters that aren't suitable for directory names
+        foreach (char c in Path.GetInvalidFileNameChars())
+        {
+            repoUrl = repoUrl.Replace(c, '-');
+        }
+
+        return repoUrl;
     }
 
     private void ClearFilters()

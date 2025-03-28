@@ -135,27 +135,31 @@
                         <WrapPanel Orientation="Horizontal" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
+
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="models:Preset">
-                        <Border Width="350" Height="180" Background="Transparent" CornerRadius="5" Padding="15"
-                                Margin="10,10">
-                            <Button BorderBrush="Transparent" 
-                                    BorderThickness="0" 
-                                    
-                                    Margin="0" Width="320" Height="180"
-                                    Click="OnShowPresetDetailsClicked"
-                                    ClickMode="Press">
-                                
-                                <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto">
-                                    <!-- Preset Name with Star -->
-                                    <Grid Grid.Row="0" Grid.Column="0">
+                        <!-- Fixed size border with absolute positioning -->
+                        <Border Width="350" Height="180" Background="#4169E1" CornerRadius="10" Margin="10,10">
+                            <!-- Use a Grid with exact row heights to ensure consistent layout -->
+                            <Grid RowDefinitions="Auto,*,Auto">
+                                <!-- Card content area -->
+                                <Grid Grid.Row="0" Margin="15,15,15,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="25" /> <!-- Title row -->
+                                        <RowDefinition Height="40" /> <!-- Description row -->
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Title with star -->
+                                    <Grid Grid.Row="0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
 
-                                        <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="Bold"
-                                                   FontSize="16" />
+                                        <TextBlock Grid.Column="0" Text="{Binding Name}"
+                                                   FontWeight="Bold" FontSize="16"
+                                                   Foreground="White"
+                                                   TextTrimming="CharacterEllipsis" />
 
                                         <!-- Gold Star for Official status -->
                                         <Path Grid.Column="1" Width="20" Height="20" Margin="5,0,0,0"
@@ -164,43 +168,72 @@
                                               IsVisible="{Binding Status, Converter={x:Static ObjectConverters.Equal}, ConverterParameter='Official'}" />
                                     </Grid>
 
-                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{Binding Description}"
-                                               FontSize="12" TextWrapping="Wrap" MaxHeight="40"
-                                               TextTrimming="CharacterEllipsis" Margin="0,5,0,0" />
+                                    <!-- Description -->
+                                    <TextBlock Grid.Row="1" Text="{Binding Description}"
+                                               FontSize="12" TextWrapping="Wrap"
+                                               Foreground="White"
+                                               TextTrimming="CharacterEllipsis" />
+                                </Grid>
 
-                                    <!-- Category -->
-                                    <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Margin="0,10,0,0">
-                                        <TextBlock Text="Category: " FontWeight="Bold" />
-                                        <TextBlock Text="{Binding Category}" />
+                                <!-- Metadata area with fixed position -->
+                                <Grid Grid.Row="1" Margin="15,0,15,15">
+                                    <StackPanel VerticalAlignment="Bottom">
+                                        <!-- Category -->
+                                        <Grid Height="20">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Category: "
+                                                       FontWeight="Bold" Foreground="White" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Category}"
+                                                       Foreground="White" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+
+                                        <!-- Author -->
+                                        <Grid Height="20">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Author: "
+                                                       FontWeight="Bold" Foreground="White" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Author}"
+                                                       Foreground="White" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+
+                                        <!-- Status -->
+                                        <Grid Height="20">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="Status: "
+                                                       FontWeight="Bold" Foreground="White" />
+                                            <TextBlock Grid.Column="1" Text="{Binding Status}"
+                                                       Foreground="White" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
                                     </StackPanel>
+                                </Grid>
 
-                                    <!-- Author -->
-                                    <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Margin="0,5,0,0">
-                                        <TextBlock Text="Author: " FontWeight="Bold" />
-                                        <TextBlock Text="{Binding Author}" />
-                                    </StackPanel>
-
-                                    <!-- Status -->
-                                    <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" Margin="0,5,0,0">
-                                        <TextBlock Text="Status: " FontWeight="Bold" />
-                                        <TextBlock Text="{Binding Status}" />
-                                    </StackPanel>
-
-                                    <!-- Tags -->
-                                    <StackPanel Grid.Row="5" Grid.Column="0" Orientation="Horizontal" Margin="0,5,0,0">
-                                        <TextBlock Text="Tags: " FontWeight="Bold" />
-                                        <TextBlock Text="{Binding Tags, Converter={StaticResource TagsToStringConverter}}" 
-                                                   TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-
-                                    
-                                    <!-- Apply Button -->
-                                    <Button Grid.Row="0" Grid.RowSpan="5" Grid.Column="1" Content="Apply"
+                                <!-- Button container with fixed position -->
+                                <Grid Grid.Row="2" Height="50">
+                                    <!-- Apply button with exact positioning -->
+                                    <Button Content="Apply"
+                                            Width="80"
+                                            Height="35"
+                                            HorizontalAlignment="Right"
+                                            VerticalAlignment="Top"
+                                            HorizontalContentAlignment="Center"
+                                            VerticalContentAlignment="Center"
+                                            Background="White"
+                                            Foreground="#4169E1"
+                                            CornerRadius="10"
                                             CommandParameter="{Binding}"
                                             Click="OnApplyPresetClicked"
-                                            Margin="10,0,0,0" VerticalAlignment="Center" />
+                                            Margin="0,0,15,0" />
                                 </Grid>
-                            </Button>
+                            </Grid>
                         </Border>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
