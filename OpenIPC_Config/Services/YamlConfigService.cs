@@ -68,9 +68,9 @@ public class YamlConfigService : IYamlConfigService
 
             // Ensure Unix-style line endings
             yamlContent = yamlContent.Replace("\r\n", "\n");
-            // yamlContent = yamlContent.TrimEnd(new char[] { '\r', '\n', '.' });
+            yamlContent = yamlContent.TrimEnd(new char[] { '\r', '\n', '.' });
             // Manually replace the "..." marker with newline.
-            yamlContent = yamlContent.Replace("...", "");
+            //yamlContent = yamlContent.Replace("...", "");
             
 
             _logger.Information("YAML content updated successfully.");
