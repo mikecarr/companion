@@ -36,7 +36,7 @@ public class SysUpgradeService
             //updateProgress("Starting sysupgrade...");
             await _sshClientService.ExecuteCommandWithProgressAsync(
                 deviceConfig,
-                $"sysupgrade --kernel={OpenIPC.RemoteTempFolder}/{kernelFilename} --rootfs={OpenIPC.RemoteTempFolder}/{rootfsFilename} -n",
+                $"sysupgrade -f -n --kernel={OpenIPC.RemoteTempFolder}/{kernelFilename} --rootfs={OpenIPC.RemoteTempFolder}/{rootfsFilename}",
                 updateProgress,
                 cancellationToken
             );
