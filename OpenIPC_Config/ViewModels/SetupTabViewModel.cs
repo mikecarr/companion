@@ -158,9 +158,9 @@ public partial class SetupTabViewModel : ViewModelBase
         ScriptFileActionItems = new ObservableCollectionExtended<string> { "Backup", "Restore" };
         DroneKeyActionItems = new ObservableCollectionExtended<string> { "Send", "Receive" };
 
-        var binariesPath = OpenIPC.GetBinariesPath();
-        var directoryPath = Path.Combine(binariesPath, "sensors");
-        PopulateSensorFileNames(directoryPath);
+        //var binariesPath = OpenIPC.GetBinariesPath();
+        //var directoryPath = Path.Combine(binariesPath, "sensors");
+        //PopulateSensorFileNames(directoryPath);
 
         InitializeFirmwareVersions();
     }

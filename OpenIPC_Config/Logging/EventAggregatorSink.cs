@@ -22,7 +22,7 @@ public class EventAggregatorSink : ILogEventSink
     {
         var message = logEvent.RenderMessage(_formatProvider);
 
-
-        _eventAggregator.GetEvent<LogMessageEvent>().Publish(message);
+        // Enqueue the log message instead of directly publishing
+        LogQueue.Enqueue(message);
     }
 }
