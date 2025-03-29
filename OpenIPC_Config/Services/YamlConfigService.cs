@@ -61,13 +61,17 @@ public class YamlConfigService : IYamlConfigService
             yamlStream.Documents.Add(new YamlDocument(root));
 
             using var writer = new StringWriter();
-            yamlStream.Save(writer, false);
+            yamlStream.Save(writer, assignAnchors: false);  
 
             // Get the serialized YAML content as a string
             var yamlContent = writer.ToString();
 
             // Ensure Unix-style line endings
             yamlContent = yamlContent.Replace("\r\n", "\n");
+            // yamlContent = yamlContent.TrimEnd(new char[] { '\r', '\n', '.' });
+            // Manually replace the "..." marker with newline.
+            yamlContent = yamlContent.Replace("...", "");
+            
 
             _logger.Information("YAML content updated successfully.");
             return yamlContent;

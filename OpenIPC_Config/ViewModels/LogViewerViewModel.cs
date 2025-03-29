@@ -1,8 +1,11 @@
 using System;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using OpenIPC_Config.Events;
 using OpenIPC_Config.Services;
 using Serilog;
+using OpenIPC_Config.Logging;
+using Avalonia.Threading;
 
 namespace OpenIPC_Config.ViewModels;
 
@@ -47,9 +50,13 @@ public class LogViewerViewModel : ViewModelBase
     {
         _eventSubscriptionService = eventSubscriptionService ??
             throw new ArgumentNullException(nameof(eventSubscriptionService));
-
-        InitializeCollections();
+        
         SubscribeToEvents();
+        
+        InitializeCollections();
+
+         // Subscribe to the LogQueue
+         LogQueue.Subscribe(OnLogMessageQueued);
     }
     #endregion
 
@@ -62,7 +69,7 @@ public class LogViewerViewModel : ViewModelBase
     private void SubscribeToEvents()
     {
         _eventSubscriptionService.Subscribe<AppMessageEvent, AppMessage>(AppMessageReceived);
-        _eventSubscriptionService.Subscribe<LogMessageEvent, string>(LogMessageReceived);
+        //_eventSubscriptionService.Subscribe<LogMessageEvent, string>(LogMessageReceived);   Remove this.
     }
     #endregion
 
@@ -70,7 +77,7 @@ public class LogViewerViewModel : ViewModelBase
     /// <summary>
     /// Handles incoming log messages and manages duplicate message handling
     /// </summary>
-    private void LogMessageReceived(string message)
+    private void OnLogMessageQueued(string message)
     {
         var formattedMessage = FormatLogMessage(message);
 
@@ -92,7 +99,7 @@ public class LogViewerViewModel : ViewModelBase
         if (message.UpdateLogView)
         {
             var formattedMessage = FormatLogMessage(message.ToString());
-            LogMessages.Insert(0, formattedMessage);
+            Dispatcher.UIThread.InvokeAsync(() => LogMessages.Insert(0, formattedMessage));
         }
     }
     #endregion
@@ -123,12 +130,12 @@ public class LogViewerViewModel : ViewModelBase
     /// <summary>
     /// Handles processing of new messages
     /// </summary>
-    private void HandleNewMessage(string message, string formattedMessage)
+    private async void HandleNewMessage(string message, string formattedMessage)
     {
         // Flush any existing duplicate message summary
         if (_duplicateCount > 0)
         {
-            FlushDuplicateMessage();
+            await FlushDuplicateMessage();
         }
 
         // Reset duplicate counter and update last message
@@ -136,20 +143,20 @@ public class LogViewerViewModel : ViewModelBase
         _lastMessage = message;
 
         // Add new message to log
-        LogMessages.Insert(0, formattedMessage);
+        Dispatcher.UIThread.InvokeAsync(() => LogMessages.Insert(0, formattedMessage));
     }
 
     /// <summary>
     /// Flushes duplicate message summary to the log
     /// </summary>
-    private void FlushDuplicateMessage()
+    private async Task FlushDuplicateMessage()
     {
         if (_duplicateCount > 0)
         {
             var duplicateMessage = FormatLogMessage(
                 $"[Last message repeated {_duplicateCount} times]");
 
-            LogMessages.Insert(0, duplicateMessage);
+            Dispatcher.UIThread.InvokeAsync(() => LogMessages.Insert(0, duplicateMessage));
             _duplicateCount = 0;
             _lastFlushTime = DateTime.Now;
         }

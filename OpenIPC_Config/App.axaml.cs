@@ -29,14 +29,12 @@ public class App : Application
     public static IServiceProvider ServiceProvider { get; private set; }
 
     public static string OSType { get; private set; }
-    
-    
 
 #if DEBUG
     private bool _ShouldCheckForUpdates = false;
 #else
     private bool _ShouldCheckForUpdates = true;
-#endif    
+#endif
 
     private void DetectOsType()
     {
@@ -127,7 +125,7 @@ public class App : Application
             Log.Error($"Error updating existing settings: {ex.Message}");
         }
     }
-
+    
     private void ReconfigureLogger(IConfiguration configuration)
     {
         var eventAggregator = ServiceProvider.GetRequiredService<IEventAggregator>();
@@ -217,7 +215,6 @@ public class App : Application
 
         return configPath;
     }
-    
 
     public virtual async Task ShowUpdateDialogAsync(string releaseNotes, string downloadUrl, string newVersion)
     {
@@ -368,6 +365,7 @@ public class App : Application
 
     private JObject createDefaultAppSettings()
     {
+
         string logPath = Path.Combine(OpenIPC.AppDataConfigDirectory, "Logs", "configurator.log");
 
         // Create default settings
