@@ -63,7 +63,12 @@ public class App : Application
             // create the file
             var defaultSettings = createDefaultAppSettings();
             File.WriteAllText(configPath, defaultSettings.ToString());
-            Log.Information($"Default appsettings.json created at {configPath}"); // Log here, using a basic config
+            Log.Information($"Default appsettings.json created at {configPath}");
+        }
+        else
+        {
+            // Update existing settings with new sections if needed
+            UpdateExistingSettings(configPath);
         }
 
         Console.WriteLine($"Loading configuration from: {configPath}");
@@ -76,6 +81,76 @@ public class App : Application
         return configuration;
     }
 
+    private void UpdateExistingSettings(string configPath)
+    {
+        try
+        {
+            // Read existing settings
+            string json = File.ReadAllText(configPath);
+            JObject existingSettings = JObject.Parse(json);
+            
+            bool hasChanges = false;
+            
+            // Check and update Serilog sinks if needed
+            var serilogSection = existingSettings["Serilog"] as JObject;
+            if (serilogSection != null)
+            {
+                var usingArray = serilogSection["Using"] as JArray;
+                if (usingArray != null)
+                {
+                    for (int i = 0; i < usingArray.Count; i++)
+                    {
+                        if (usingArray[i].ToString() == "Serilog.Sinks.RollingFile")
+                        {
+                            usingArray[i] = "Serilog.Sinks.File";
+                            hasChanges = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // if (usingArray != null && usingArray.Contains("Serilog.Sinks.RollingFile"))
+                // {
+                //     usingArray.Replace(new JArray("Serilog.Sinks.Console", "Serilog.Sinks.File"));
+                //     hasChanges = true;
+                //     Log.Information("Updated Serilog sinks configuration");
+                // }
+            }
+
+            // Check if Presets section exists, add if missing
+            if (existingSettings["Presets"] == null)
+            {
+                existingSettings["Presets"] = new JObject(
+                    new JProperty("Repositories", 
+                        new JArray(
+                            new JObject(
+                                new JProperty("Url", "https://github.com/mikecarr/fpv-presets"),
+                                new JProperty("Branch", "master"),
+                                new JProperty("Description", "Official OpenIPC presets repository"),
+                                new JProperty("IsActive", true)
+                            )
+                        )
+                    )
+                );
+                hasChanges = true;
+                Log.Information("Added Presets section to existing settings");
+            }
+            
+            // Add more upgrade steps for other sections as needed
+            
+            // Save changes if needed
+            if (hasChanges)
+            {
+                File.WriteAllText(configPath, existingSettings.ToString());
+                Log.Information($"Updated existing settings at {configPath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error updating existing settings: {ex.Message}");
+        }
+    }
+    
     private void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
         // Register IEventAggregator as a singleton
