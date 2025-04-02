@@ -124,7 +124,7 @@ public class App : Application
                     new JProperty("Repositories", 
                         new JArray(
                             new JObject(
-                                new JProperty("Url", "https://github.com/mikecarr/fpv-presets"),
+                                new JProperty("Url", "https://github.com/OpenIPC/fpv-presets"),
                                 new JProperty("Branch", "master"),
                                 new JProperty("Description", "Official OpenIPC presets repository"),
                                 new JProperty("IsActive", true)
