@@ -92,6 +92,32 @@ public class App : Application
             
             bool hasChanges = false;
             
+            // Check and update Serilog sinks if needed
+            var serilogSection = existingSettings["Serilog"] as JObject;
+            if (serilogSection != null)
+            {
+                var usingArray = serilogSection["Using"] as JArray;
+                if (usingArray != null)
+                {
+                    for (int i = 0; i < usingArray.Count; i++)
+                    {
+                        if (usingArray[i].ToString() == "Serilog.Sinks.RollingFile")
+                        {
+                            usingArray[i] = "Serilog.Sinks.File";
+                            hasChanges = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // if (usingArray != null && usingArray.Contains("Serilog.Sinks.RollingFile"))
+                // {
+                //     usingArray.Replace(new JArray("Serilog.Sinks.Console", "Serilog.Sinks.File"));
+                //     hasChanges = true;
+                //     Log.Information("Updated Serilog sinks configuration");
+                // }
+            }
+
             // Check if Presets section exists, add if missing
             if (existingSettings["Presets"] == null)
             {
@@ -99,7 +125,7 @@ public class App : Application
                     new JProperty("Repositories", 
                         new JArray(
                             new JObject(
-                                new JProperty("Url", "https://github.com/mikecarr/fpv-presets"),
+                                new JProperty("Url", "https://github.com/OpenIPC/fpv-presets"),
                                 new JProperty("Branch", "master"),
                                 new JProperty("Description", "Official OpenIPC presets repository"),
                                 new JProperty("IsActive", true)
@@ -126,42 +152,73 @@ public class App : Application
         }
     }
     
-    private void ReconfigureLogger(IConfiguration configuration)
+    private void ConfigureServices(IServiceCollection services, IConfiguration configuration)
     {
-        var eventAggregator = ServiceProvider.GetRequiredService<IEventAggregator>();
+        // Register IEventAggregator as a singleton
+        services.AddSingleton<IEventAggregator, EventAggregator>();
+        services.AddSingleton<IEventSubscriptionService, EventSubscriptionService>();
+        services.AddSingleton<ISshClientService, SshClientService>();
+        services.AddSingleton<IMessageBoxService, MessageBoxService>();
 
-        //Log.Logger = null;
-        Log.Logger = new LoggerConfiguration()
-            .ReadFrom.Configuration(configuration)
-            //.WriteTo.Console() // Keep console logging
-            .WriteTo.Sink(new EventAggregatorSink(eventAggregator)) // Add EventAggregatorSink
-            .CreateLogger();
+        services.AddSingleton<IYamlConfigService, YamlConfigService>();
+        
+        // Register IConfiguration
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddTransient<DeviceConfigValidator>();
+        services.AddSingleton<IGlobalSettingsService, GlobalSettingsService>();
+
+        // Register IConfiguration
+        services.AddTransient<DeviceConfigValidator>();
+
+        services.AddSingleton<HttpClient>();
+        // for release info
+        services.AddSingleton<IGitHubService, GitHubService>();
+        // for presets
+        services.AddSingleton<IGitHubPresetService, GitHubPresetService>();
+        services.AddSingleton<IPresetService, PresetService>();
+        
+        // add memory cache
+        services.AddMemoryCache();
+
+        // Register ViewModels
+        RegisterViewModels(services);
+
+        // Register Views
+        RegisterViews(services);
+
+        // Register Logger using factory
+        services.AddSingleton<ILogger>(sp =>
+        {
+            var eventAggregator = sp.GetRequiredService<IEventAggregator>();
+            return new LoggerConfiguration()
+                .ReadFrom.Configuration(configuration)
+                //.WriteTo.Console() // Keep console logging
+                .WriteTo.Sink(new EventAggregatorSink(eventAggregator)) // Add EventAggregatorSink
+                .CreateLogger();
+        });
+    }
+
+    public override void OnFrameworkInitializationCompleted()
+    {
+        // Step 1: Load configuration
+        var configuration = LoadConfiguration();
+
+        // Step 2: Configure DI container
+        var serviceCollection = new ServiceCollection();
+        ConfigureServices(serviceCollection, configuration);
+        ServiceProvider = serviceCollection.BuildServiceProvider();
+
+        // Step 3: Initialize logger (resolve it from service provider)
+        Log.Logger = ServiceProvider.GetRequiredService<ILogger>();
 
         Log.Information(
             "**********************************************************************************************");
         Log.Information($"Starting up log for OpenIPC Configurator v{VersionHelper.GetAppVersion()}");
         Log.Information("Logger initialized successfully.");
-    }
-
-    public override void OnFrameworkInitializationCompleted()
-    {
-        // Step 1: Initialize basic logger 
-        // not sure if this is needed
-        //InitializeBasicLogger();
-
-        // Step 2: Load configuration
-        var configuration = LoadConfiguration();
-
-        // Configure DI container
-        var serviceCollection = new ServiceCollection();
-        ConfigureServices(serviceCollection, configuration);
-        ServiceProvider = serviceCollection.BuildServiceProvider();
-
-        // Step 4: Reconfigure logger with DI services
-        ReconfigureLogger(configuration);
+        Log.Information("Starting up....");
 
         // check for updates
-        if(_ShouldCheckForUpdates)
+        if (_ShouldCheckForUpdates)
             CheckForUpdatesAsync();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -247,7 +304,7 @@ public class App : Application
             Assembly.GetExecutingAssembly().GetName().Name, "appsettings.json");
 
         Console.WriteLine($"Loading configuration from: {configPath}");
-        
+
         // Create an IConfiguration instance
         var configuration = new ConfigurationBuilder()
             .AddJsonFile(configPath, false, true)
@@ -288,47 +345,10 @@ public class App : Application
         }
     }
 
-    private void ConfigureServices(IServiceCollection services, IConfiguration configuration)
-    {
-        // Register IEventAggregator as a singleton
-        services.AddSingleton<IEventAggregator, EventAggregator>();
-        services.AddSingleton<IEventSubscriptionService, EventSubscriptionService>();
-        services.AddSingleton<ISshClientService, SshClientService>();
-        services.AddSingleton<IMessageBoxService, MessageBoxService>();
-
-        services.AddSingleton<IYamlConfigService, YamlConfigService>();
-        services.AddSingleton<ILogger>(sp => Log.Logger);
-        
-        // Register IConfiguration
-        services.AddSingleton<IConfiguration>(configuration);
-        services.AddTransient<DeviceConfigValidator>();
-        services.AddSingleton<IGlobalSettingsService, GlobalSettingsService>();
-        
-        // Register IConfiguration
-        services.AddTransient<DeviceConfigValidator>();
-
-        services.AddSingleton<HttpClient>();
-        // for release info
-        services.AddSingleton<IGitHubService, GitHubService>();
-        // for presets
-        services.AddSingleton<IGitHubPresetService, GitHubPresetService>();
-        services.AddSingleton<IPresetService, PresetService>();
-
-        // add memory cache
-        services.AddMemoryCache();
-
-        // Register ViewModels
-        RegisterViewModels(services);
-
-        // Register Views
-        RegisterViews(services);
-    }
-
     private static void RegisterViewModels(IServiceCollection services)
     {
         // Register ViewModels
         services.AddSingleton<MainViewModel>();
-        
 
         services.AddSingleton<CameraSettingsTabViewModel>();
         services.AddSingleton<ConnectControlsViewModel>();
@@ -341,7 +361,6 @@ public class App : Application
         services.AddSingleton<WfbTabViewModel>();
         services.AddSingleton<FirmwareTabViewModel>();
         services.AddSingleton<PresetsTabViewModel>();
-        
     }
 
     private static void RegisterViews(IServiceCollection services)
@@ -360,12 +379,10 @@ public class App : Application
         services.AddTransient<FirmwareTabView>();
         services.AddTransient<WfbTabView>();
         services.AddTransient<PresetsTabView>();
-        
     }
 
     private JObject createDefaultAppSettings()
     {
-
         string logPath = Path.Combine(OpenIPC.AppDataConfigDirectory, "Logs", "configurator.log");
 
         // Create default settings

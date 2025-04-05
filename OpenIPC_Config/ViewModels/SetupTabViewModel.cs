@@ -590,12 +590,12 @@ public partial class SetupTabViewModel : ViewModelBase
             DownloadProgress = 0;
             var outputBuffer = new StringBuilder();
 
-            Log.Information($"Running command: sysupgrade --kernel={kernelPath} --rootfs={rootfsPath} -n");
+            Log.Information($"Running command: sysupgrade -f -n--kernel={kernelPath} --rootfs={rootfsPath}");
 
             // Pass cancellation token to the command
             await SshClientService.ExecuteCommandWithProgressAsync(
                 DeviceConfig.Instance,
-                $"sysupgrade --kernel={kernelPath} --rootfs={rootfsPath} -n",
+                $"sysupgrade -f -n --kernel={kernelPath} --rootfs={rootfsPath}",
                 output =>
                 {
                     outputBuffer.AppendLine(output);
