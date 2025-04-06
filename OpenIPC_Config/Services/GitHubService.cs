@@ -11,7 +11,7 @@ namespace OpenIPC_Config.Services
         private readonly IMemoryCache _cache;
         private readonly HttpClient _httpClient;
         private readonly string _cacheKey = "GitHubData"; // Unique key for your data
-        private readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(60); // Cache for 1 hour
+        private readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(120); // Cache for 1 hour
 
         public GitHubService(IMemoryCache cache, HttpClient httpClient)
         {

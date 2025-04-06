@@ -2,9 +2,11 @@ using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using OpenIPC_Config.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
+using OpenIPC_Config.Models.Presets;
 
 namespace OpenIPC_Config.Views;
 
@@ -35,6 +37,38 @@ public partial class PresetsTabView : UserControl
             }
         }
         
+    }
+    
+    // In PresetsTabView.axaml.cs
+    public bool GetCanConnect()
+    {
+        return (DataContext as PresetsTabViewModel)?.CanConnect ?? false;
+    }
+    
+    private void OnShowPresetDetailsClicked(object? sender, RoutedEventArgs e)
+    {
+        // Get the Preset from the clicked button's DataContext
+        var preset = (sender as Button)?.DataContext as Preset;
+
+        // Get the DataContext of the current view
+        if (DataContext is PresetsTabViewModel viewModel)
+        {
+            // Call the method to show preset details
+            viewModel.ShowPresetDetails(preset);
+        }
+    }
+
+    private void OnApplyPresetClicked(object? sender, RoutedEventArgs e)
+    {
+        // Get the Preset from the clicked button's DataContext
+        var preset = (sender as Button)?.DataContext as Preset;
+
+        // Get the DataContext of the current view
+        if (DataContext is PresetsTabViewModel viewModel)
+        {
+            // Call the method to apply preset
+            viewModel.ApplyPresetAsync(preset);
+        }
     }
 
     

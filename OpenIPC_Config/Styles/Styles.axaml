@@ -8,9 +8,15 @@
     </Design.PreviewWith>
 
 
+    <!-- Resource dictionary with colors -->
+    <Styles.Resources>
+        <Color x:Key="OpenIPCBlue">#4C61D8</Color>
+        <SolidColorBrush x:Key="OpenIPCBlueBrush" Color="{StaticResource OpenIPCBlue}"/>
+    </Styles.Resources>
+    
     <!-- Default Window Style -->
     <Style Selector="Window">
-        <Setter Property="Width" Value="900" />
+        <Setter Property="Width" Value="1100" />
         <Setter Property="Height" Value="715" />
         <!-- <Setter Property="RequestedThemeVariant" Value="Dark" /> -->
         <Setter Property="RequestedThemeVariant" Value="Light" />
@@ -68,7 +74,7 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="10,5" />
 
-        <Setter Property="Background" Value="#4C61D8" />
+        <Setter Property="Background" Value="{StaticResource OpenIPCBlueBrush}" />
         <Setter Property="Foreground" Value="White" />
         <!-- <Setter Property="Background" Value="#B0D5FF"/> -->
         <!-- <Setter Property="Foreground" Value="#000000"/> -->

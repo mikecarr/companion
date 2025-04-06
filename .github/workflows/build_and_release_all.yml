@@ -61,14 +61,14 @@ jobs:
       - name: Publish Project
         run: |
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-x64 --self-contained
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-arm64 --self-contained
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-arm64 --self-contained -p:PublishSingleFile=true
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-x64 --self-contained
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-arm64 --self-contained
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true
           else
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-x64 --self-contained
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-arm64 --self-contained
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true
           fi
         shell: bash
       
@@ -165,7 +165,7 @@ jobs:
           APP_NAME="OpenIPC-Config"
           PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/linux-x64/publish"
           ICON_PATH="${PUBLISH_DIR}/Assets/OpenIPC.png"
-          DESKTOP_FILE="${PUBLISH_DIR}/${APP_NAME}.desktop"
+          DESKTOP_FILE="${PUBLISH_DIR}/${APP_NAME}-App.desktop"
           
           # Ensure the icon is in the publish directory
           cp ./OpenIPC_Config/Assets/Icons/OpenIPC.png "$ICON_PATH"
@@ -174,7 +174,7 @@ jobs:
           cat << EOF > "$DESKTOP_FILE"
           [Desktop Entry]
           Name=OpenIPC Config
-          Exec=$PUBLISH_DIR/OpenIPC-Config.Desktop
+          Exec=./OpenIPC-Config.Desktop
           Icon=$ICON_PATH
           Type=Application
           Terminal=false
@@ -293,6 +293,17 @@ jobs:
         with:
           draft: true
           generate_release_notes: true
+          body: |
+            ## OpenIPC Multiplatform Configurator
+            
+            Thank you for using OpenIPC Configurator! This application helps you configure OpenIPC cameras for FPV use.
+            
+            ### Installation Instructions:
+            - **Windows**: Extract the zip file and run the executable
+            - **macOS**: Mount the DMG file and drag the app to your Applications folder
+            - **Linux**: Download the zip file, open terminal, cd into folder, and run ./OpenIPC_Config.Desktop
+                        
+            ---
           files: |
             ./OpenIPC-Config-*/OpenIPC-Config-*.zip
             ./OpenIPC-Config-*/OpenIPC-Config-*.dmg

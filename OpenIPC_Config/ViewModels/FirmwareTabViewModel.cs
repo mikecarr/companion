@@ -381,6 +381,9 @@ public partial class FirmwareTabViewModel : ViewModelBase
 
         var chipType = DeviceConfig.Instance.ChipType;
 
+        if (string.IsNullOrEmpty(chipType))
+            return;
+        
         foreach (var filename in filenames)
         {
             //string pattern = $@"^(?=.*{Regex.Escape(chipType)})(?=.*fpv).*?(?<memoryType>nand|nor)\.tgz$";  //Dynamically create regex with escaped chipType

@@ -12,6 +12,7 @@
     <ItemGroup>
         <PackageReference Include="Avalonia.Desktop" Version="0.10.13"/>
         <PackageReference Include="Avalonia.Svg.Skia" Version="11.2.0.2"/>
+        <PackageReference Include="Avalonia.Xaml.Interactivity" Version="11.2.0.12" />
         <PackageReference Include="coverlet.collector" Version="6.0.0"/>
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0"/>

@@ -16,6 +16,7 @@ using Newtonsoft.Json.Linq;
 using OpenIPC_Config.Logging;
 using OpenIPC_Config.Models;
 using OpenIPC_Config.Services;
+using OpenIPC_Config.Services.Presets;
 using OpenIPC_Config.ViewModels;
 using OpenIPC_Config.Views;
 using Prism.Events;
@@ -170,8 +171,12 @@ public class App : Application
         services.AddTransient<DeviceConfigValidator>();
 
         services.AddSingleton<HttpClient>();
+        // for release info
         services.AddSingleton<IGitHubService, GitHubService>();
-
+        // for presets
+        services.AddSingleton<IGitHubPresetService, GitHubPresetService>();
+        services.AddSingleton<IPresetService, PresetService>();
+        
         // add memory cache
         services.AddMemoryCache();
 
@@ -205,12 +210,13 @@ public class App : Application
 
         // Step 3: Initialize logger (resolve it from service provider)
         Log.Logger = ServiceProvider.GetRequiredService<ILogger>();
-
-        Log.Information(
+        var logger = Log.ForContext<App>();
+        
+        logger.Information(
             "**********************************************************************************************");
-        Log.Information($"Starting up log for OpenIPC Configurator v{VersionHelper.GetAppVersion()}");
-        Log.Information("Logger initialized successfully.");
-        Log.Information("Starting up....");
+        logger.Information($"Starting up log for OpenIPC Configurator {VersionHelper.GetAppVersion()}");
+        logger.Information("Logger initialized successfully.");
+        logger.Information("Starting up....");
 
         // check for updates
         if (_ShouldCheckForUpdates)
@@ -386,6 +392,20 @@ public class App : Application
                 new JObject(
                     new JProperty("LatestJsonUrl",
                         "https://github.com/OpenIPC/openipc-configurator/releases/latest/download/latest.json")
+                )
+            ),
+            new JProperty("Presets",
+                new JObject(
+                    new JProperty("Repositories", 
+                        new JArray(
+                            new JObject(
+                                new JProperty("Url", "https://github.com/mikecarr/fpv-presets"),
+                                new JProperty("Branch", "master"),
+                                new JProperty("Description", "Official OpenIPC presets repository"),
+                                new JProperty("IsActive", true)
+                            )
+                        )
+                    )
                 )
             ),
             new JProperty("Serilog",

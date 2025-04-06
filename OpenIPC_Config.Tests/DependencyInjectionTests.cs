@@ -18,7 +18,11 @@ public class DependencyInjectionTests
         services.AddSingleton<IEventSubscriptionService, EventSubscriptionService>();
         services.AddSingleton<ISshClientService, SshClientService>();
         services.AddSingleton<IYamlConfigService, YamlConfigService>();
-        services.AddSingleton<ILogger>(sp => Mock.Of<ILogger>());
+        
+        
+        var loggerMock = new Mock<ILogger>();
+        loggerMock.Setup(x => x.ForContext(It.IsAny<Type>())).Returns(loggerMock.Object);
+        services.AddSingleton<ILogger>(sp => loggerMock.Object);
 
         services.AddTransient<CameraSettingsTabViewModel>();
 

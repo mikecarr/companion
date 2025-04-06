@@ -16,7 +16,7 @@ public class GlobalSettingsService : IGlobalSettingsService
 
         public GlobalSettingsService(ILogger logger, ISshClientService sshClientService)
         {
-            _logger = logger;
+            _logger = logger.ForContext<GlobalSettingsService>();
             _sshClientService = sshClientService;
         }
 

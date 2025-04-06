@@ -43,7 +43,7 @@ public partial class MainViewModel : ViewModelBase
 
     private readonly IServiceProvider _serviceProvider;
     private readonly IGlobalSettingsService _globalSettingsService;
-
+    private readonly ILogger _logger;
     
     [ObservableProperty] private bool _isWaiting;
     [ObservableProperty] private bool _isConnected;
@@ -56,10 +56,14 @@ public partial class MainViewModel : ViewModelBase
         IGlobalSettingsService globalSettingsService)
         : base(logger, sshClientService, eventSubscriptionService)
     {
+        
+        _logger = logger?.ForContext(GetType()) ?? 
+                 throw new ArgumentNullException(nameof(logger));
+        
         LoadSettings();
         
         // Initialize the ping service
-        _pingService = PingService.Instance(logger);
+        _pingService = PingService.Instance(_logger);
         CanConnect = false;
         
         IsMobile = false;
@@ -114,8 +118,8 @@ public partial class MainViewModel : ViewModelBase
                 _serviceProvider.GetRequiredService<CameraSettingsTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Telemetry", "avares://OpenIPC_Config/Assets/Icons/iconoir_drag_dark.svg",
                 _serviceProvider.GetRequiredService<TelemetryTabViewModel>(), IsTabsCollapsed));
-            // Tabs.Add(new TabItemViewModel("Presets", "avares://OpenIPC_Config/Assets/Icons/iconoir_presets_dark.svg",
-            //     _serviceProvider.GetRequiredService<PresetsTabViewModel>(), IsTabsCollapsed));
+            Tabs.Add(new TabItemViewModel("Presets", "avares://OpenIPC_Config/Assets/Icons/iconoir_presets_dark.svg",
+                _serviceProvider.GetRequiredService<PresetsTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Setup", "avares://OpenIPC_Config/Assets/Icons/iconoir_settings_dark.svg",
                 _serviceProvider.GetRequiredService<SetupTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Firmware", "avares://OpenIPC_Config/Assets/Icons/iconair_firmware_dark.svg",
@@ -215,23 +219,23 @@ public partial class MainViewModel : ViewModelBase
 
     partial void OnIpAddressChanged(string value)
     {
-        Logger.Verbose($"IP Address changed to: {value}");
+        _logger.Verbose($"IP Address changed to: {value}");
         if (!string.IsNullOrEmpty(value))
         {
             if (Utilities.IsValidIpAddress(value))
             {
-                Logger.Verbose($"Starting ping timer for valid IP: {value}");
+                _logger.Verbose($"Starting ping timer for valid IP: {value}");
                 StartPingTimer();
             }
             else
             {
-                Logger.Verbose($"Stopping ping timer for invalid IP: {value}");
+                _logger.Verbose($"Stopping ping timer for invalid IP: {value}");
                 StopPingTimer();
             }
         }
         else
         {
-            Logger.Verbose("Stopping ping timer for empty IP");
+            _logger.Verbose("Stopping ping timer for empty IP");
             StopPingTimer();
         }
     }
@@ -249,7 +253,7 @@ public partial class MainViewModel : ViewModelBase
     {
         // Insert logic to send a message based on the selected device type
         // For example, use an event aggregator, messenger, or direct call
-        Log.Debug($"Device type selected: {deviceType}");
+        _logger.Debug($"Device type selected: {deviceType}");
         //Console.WriteLine($"Device type selected: {deviceType}");
 
         EventSubscriptionService.Publish<DeviceTypeChangeEvent, DeviceType>(deviceType);
@@ -263,7 +267,7 @@ public partial class MainViewModel : ViewModelBase
         if (_pingTimer != null)
         {
             CanConnect = false;
-            Logger.Debug($"Stopping ping timer for IP: {IpAddress}");
+            _logger.Debug($"Stopping ping timer for IP: {IpAddress}");
 
             _pingTimer.Tick -= PingTimer_Tick; // Remove the event handler
             _pingTimer.Stop();
@@ -287,7 +291,7 @@ public partial class MainViewModel : ViewModelBase
 
          _pingTimer.Tick += PingTimer_Tick;
          
-         Logger.Verbose($"Starting ping timer for IP: {IpAddress}");
+         _logger.Verbose($"Starting ping timer for IP: {IpAddress}");
          _pingTimer.Start();
     }
     
@@ -304,11 +308,11 @@ public partial class MainViewModel : ViewModelBase
             // Important: Store the IP address that was used for this ping operation
             string ipBeingPinged = currentIpAddress;
             
-            Logger.Verbose($"PingTimer_Tick executing ping to: {ipBeingPinged}");
+            _logger.Verbose($"PingTimer_Tick executing ping to: {ipBeingPinged}");
             
             if (string.IsNullOrEmpty(ipBeingPinged))
             {
-                Logger.Verbose("Empty IP - Setting IsConnected=false, IsWaiting=true");
+                _logger.Verbose("Empty IP - Setting IsConnected=false, IsWaiting=true");
                 IsConnected = false;
                 IsWaiting = true;
                 return;
@@ -323,7 +327,7 @@ public partial class MainViewModel : ViewModelBase
                 {
                     if (reply.Status == IPStatus.Success)
                     {
-                        Logger.Verbose("Ping successful - Setting IsConnected=true, IsWaiting=false");
+                        _logger.Verbose("Ping successful - Setting IsConnected=true, IsWaiting=false");
                         
                         // used for status color changes
                         IsConnected = true;
@@ -334,7 +338,7 @@ public partial class MainViewModel : ViewModelBase
                     }
                     else
                     {
-                        Logger.Verbose("Ping failed - Setting IsConnected=false, IsWaiting=true");
+                        _logger.Verbose("Ping failed - Setting IsConnected=false, IsWaiting=true");
                         
                         // used for status color changes
                         IsConnected = false;
@@ -346,7 +350,7 @@ public partial class MainViewModel : ViewModelBase
                 }
                 else
                 {
-                    Logger.Debug($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring result");
+                    _logger.Debug($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring result");
                 }
             }
             catch (Exception pingEx)
@@ -355,22 +359,22 @@ public partial class MainViewModel : ViewModelBase
                 // Only update the UI state if the IP we pinged is still the current IP
                 if (ipBeingPinged == IpAddress)
                 {
-                    Logger.Error(pingEx, $"Error occurred during ping to {ipBeingPinged}");
+                    _logger.Error(pingEx, $"Error occurred during ping to {ipBeingPinged}");
                     IsConnected = false;
                     IsWaiting = true;
-                    Logger.Verbose("Current state after exception: IsConnected=False, IsWaiting=True");
+                    _logger.Verbose("Current state after exception: IsConnected=False, IsWaiting=True");
                 }
                 else
                 {
-                    Logger.Verbose($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring error");
+                    _logger.Verbose($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring error");
                 }
             }
         
-            Logger.Verbose($"After ping to {ipBeingPinged}: IsConnected={IsConnected}, IsWaiting={IsWaiting}");
+            _logger.Verbose($"After ping to {ipBeingPinged}: IsConnected={IsConnected}, IsWaiting={IsWaiting}");
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "Unhandled error in PingTimer_Tick");
+            _logger.Error(ex, "Unhandled error in PingTimer_Tick");
             IsConnected = false;
             IsWaiting = true;
         }
@@ -392,7 +396,7 @@ public partial class MainViewModel : ViewModelBase
         await getHostname(_deviceConfig);
         if (_deviceConfig.Hostname == string.Empty)
         {
-            Log.Error("Failed to get hostname, stopping");
+            _logger.Error("Failed to get hostname, stopping");
             return;
         }
 
@@ -407,7 +411,7 @@ public partial class MainViewModel : ViewModelBase
             var result = await msBox.ShowAsync();
             if (result == ButtonResult.Cancel)
             {
-                Log.Debug("Device selection and hostname mismatch, stopping");
+                _logger.Debug("Device selection and hostname mismatch, stopping");
                 return;
             }
         }
@@ -624,7 +628,7 @@ public partial class MainViewModel : ViewModelBase
     {
         // read device to determine configurations
         await _globalSettingsService.ReadDevice();
-        Logger.Debug($"IsWfbYamlEnabled = {_globalSettingsService.IsWfbYamlEnabled}");
+        _logger.Debug($"IsWfbYamlEnabled = {_globalSettingsService.IsWfbYamlEnabled}");
 
         // remove when ready
         //_globalSettingsSettingsViewModel.IsWfbYamlEnabled = false;
@@ -634,7 +638,7 @@ public partial class MainViewModel : ViewModelBase
             try
             {
                 // download file wfb.yaml
-                Logger.Debug($"Reading wfb.yaml");
+                _logger.Debug($"Reading wfb.yaml");
 
                 var wfbContent = await SshClientService.DownloadFileAsync(_deviceConfig, OpenIPC.WfbYamlFileLoc);
 
@@ -646,7 +650,7 @@ public partial class MainViewModel : ViewModelBase
             }
             catch (Exception e)
             {
-                Log.Error(e.Message);
+                _logger.Error(e.Message);
             }
             
             try
@@ -659,12 +663,12 @@ public partial class MainViewModel : ViewModelBase
             }
             catch (Exception e)
             {
-                Log.Error(e.Message);
+                _logger.Error(e.Message);
             }
         }
         else
         {
-            Logger.Debug($"Reading legacy settings");
+            _logger.Debug($"Reading legacy settings");
             // download file wfb.conf
             var wfbConfContent = await SshClientService.DownloadFileAsync(_deviceConfig, OpenIPC.WfbConfFileLoc);
 
@@ -683,7 +687,7 @@ public partial class MainViewModel : ViewModelBase
             }
             catch (Exception e)
             {
-                Log.Error(e.Message);
+                _logger.Error(e.Message);
             }
 
             try
@@ -697,7 +701,7 @@ public partial class MainViewModel : ViewModelBase
             }
             catch (Exception e)
             {
-                Log.Error(e.Message);
+                _logger.Error(e.Message);
                 throw;
             }
 
@@ -723,7 +727,7 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception e)
         {
-            Log.Error($"Error checking Alink Drone status: {e.Message}");
+            _logger.Error($"Error checking Alink Drone status: {e.Message}");
         }
         finally
         {
@@ -733,7 +737,7 @@ public partial class MainViewModel : ViewModelBase
         EventSubscriptionService.Publish<AppMessageEvent,
             AppMessage>(new AppMessage { CanConnect = DeviceConfig.Instance.CanConnect, DeviceConfig = _deviceConfig });
 
-        Log.Information("Done reading files from device.");
+        _logger.Information("Done reading files from device.");
     }
 
     private async Task GetAndComputeAirMd5Hash()
@@ -762,7 +766,7 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception e)
         {
-            Log.Error(e.Message);
+            _logger.Error(e.Message);
             throw;
         }
     }
@@ -794,7 +798,7 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception e)
         {
-            Log.Error(e.Message);
+            _logger.Error(e.Message);
             throw;
         }
 
@@ -817,7 +821,7 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception e)
         {
-            Log.Error(e.Message);
+            _logger.Error(e.Message);
             throw;
         }
 
@@ -841,7 +845,7 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception e)
         {
-            Log.Error(e.Message);
+            _logger.Error(e.Message);
             throw;
         }
 
@@ -856,9 +860,9 @@ public partial class MainViewModel : ViewModelBase
             {
                 var droneKey = Utilities.ComputeMd5Hash(gsKeyContent);
                 if (droneKey != OpenIPC.KeyMD5Sum)
-                    Log.Warning("GS key MD5 checksum mismatch");
+                    _logger.Warning("GS key MD5 checksum mismatch");
                 else
-                    Log.Information("GS key MD5 checksum matched default key");
+                    _logger.Information("GS key MD5 checksum matched default key");
 
                 EventSubscriptionService.Publish<RadxaContentUpdateChangeEvent,
                     RadxaContentUpdatedMessage>(new RadxaContentUpdatedMessage { DroneKeyContent = droneKey });
@@ -869,14 +873,14 @@ public partial class MainViewModel : ViewModelBase
         }
         catch (Exception e)
         {
-            Log.Error(e.Message);
+            _logger.Error(e.Message);
             throw;
         }
 
         EventSubscriptionService.Publish<AppMessageEvent, AppMessage>(new AppMessage
             { CanConnect = DeviceConfig.Instance.CanConnect, DeviceConfig = _deviceConfig });
 
-        Log.Information("Done reading files from device.");
+        _logger.Information("Done reading files from device.");
     }
 
     private void LoadSettings()
@@ -896,7 +900,7 @@ public partial class MainViewModel : ViewModelBase
 
     private void OnDeviceTypeChangeEvent(DeviceType deviceTypeEvent)
     {
-        Log.Debug($"Device type changed to: {deviceTypeEvent}");
+        _logger.Debug($"Device type changed to: {deviceTypeEvent}");
 
         InitializeTabs(deviceTypeEvent);
 

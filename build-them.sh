@@ -81,7 +81,7 @@ EOL
 # Function to build for macOS with verbose output
 build_macos() {
     echo "Building $desktop_project for macOS (osx-arm64) as .app bundle..."
-    dotnet publish $desktop_project -c Release -r osx-arm64 --output "$output_dir/$desktop_project/osx-arm64" --self-contained -v $verbosity
+    dotnet publish $desktop_project -c Release -r osx-arm64 --output "$output_dir/$desktop_project/osx-arm64" --self-contained -v $verbosity -p:PublishSingleFile=true
   
     if [ -f "$output_dir/$desktop_project/osx-arm64/OpenIPC_Config.Desktop.dll" ]; then
         create_macos_app_bundle
@@ -93,19 +93,19 @@ build_macos() {
 # Function to build for Windows
 build_windows() {
     echo "Building $desktop_project for win-arm64..."
-    dotnet publish $desktop_project -c Release -r win-arm64 --output "$output_dir/$desktop_project/win-arm64" --self-contained -v $verbosity
+    dotnet publish $desktop_project -c Release -r win-arm64 --output "$output_dir/$desktop_project/win-arm64" --self-contained -v $verbosity -p:PublishSingleFile=true
 
     echo "Building $desktop_project for win-x64..."
-    dotnet publish $desktop_project -c Release -r win-x64 --output "$output_dir/$desktop_project/win-x64" --self-contained -v $verbosity
+    dotnet publish $desktop_project -c Release -r win-x64 --output "$output_dir/$desktop_project/win-x64" --self-contained -v $verbosity -p:PublishSingleFile=true
 }
 
 # Function to build for Linux
 build_linux() {
     echo "Building $desktop_project for linux-arm64..."
-    dotnet publish $desktop_project -c Release -r linux-arm64 --output "$output_dir/$desktop_project/linux-arm64" --self-contained -v $verbosity
+    dotnet publish $desktop_project -c Release -r linux-arm64 --output "$output_dir/$desktop_project/linux-arm64" --self-contained -v $verbosity -p:PublishSingleFile=true
 
     echo "Building $desktop_project for linux-x64..."
-    dotnet publish $desktop_project -c Release -r linux-x64 --output "$output_dir/$desktop_project/linux-x64" --self-contained -v $verbosity
+    dotnet publish $desktop_project -c Release -r linux-x64 --output "$output_dir/$desktop_project/linux-x64" --self-contained -v $verbosity -p:PublishSingleFile=true
 }
 
 # Function to build for Android
