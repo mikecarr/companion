@@ -15,6 +15,8 @@ public class CameraSettingsTabViewModelTests : ViewModelTestBase
     public void SetUp()
     {
         _mockLogger = new Mock<ILogger>();
+        _mockLogger.Setup(x => x.ForContext(It.IsAny<Type>())).Returns(_mockLogger.Object);
+
         _mockSshClientService = new Mock<ISshClientService>();
         _mockEventSubscriptionService = new Mock<IEventSubscriptionService>();
         _mockYamlConfigService = new Mock<IYamlConfigService>();
@@ -30,6 +32,7 @@ public class CameraSettingsTabViewModelTests : ViewModelTestBase
 
     private CameraSettingsTabViewModel _viewModel;
     private Mock<ILogger> _mockLogger;
+    
     private Mock<ISshClientService> _mockSshClientService;
     private Mock<IEventSubscriptionService> _mockEventSubscriptionService;
     private Mock<IYamlConfigService> _mockYamlConfigService;

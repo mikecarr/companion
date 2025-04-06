@@ -13,6 +13,7 @@ public class FirmwareTabViewModelTests
     
     private FirmwareTabViewModel _viewModel;
     private Mock<ILogger> _mockLogger;
+    
     private Mock<ISshClientService> _mockSshClientService;
     private Mock<IEventSubscriptionService> _mockEventSubscriptionService;
     private Mock<IGitHubService> _mockGithubService;
@@ -21,6 +22,8 @@ public class FirmwareTabViewModelTests
     public void Setup()
     {
         _mockLogger = new Mock<ILogger>();
+        _mockLogger.Setup(x => x.ForContext(It.IsAny<Type>())).Returns(_mockLogger.Object);
+
         _mockSshClientService = new Mock<ISshClientService>();
         _mockEventSubscriptionService = new Mock<IEventSubscriptionService>();
         _mockGithubService = new Mock<IGitHubService>(); 

@@ -23,6 +23,8 @@ public class TelemetryTabViewModelTests
     public void SetUp()
     {
         _mockLogger = new Mock<ILogger>();
+        _mockLogger.Setup(x => x.ForContext(It.IsAny<Type>())).Returns(_mockLogger.Object);
+
         _mockSshClientService = new Mock<ISshClientService>();
         _mockEventSubscriptionService = new Mock<IEventSubscriptionService>();
         _mockMessageBoxService = new Mock<IMessageBoxService>();

@@ -30,6 +30,8 @@ public abstract class ViewModelTestBase
     private void SetUpMocks()
     {
         LoggerMock = new Mock<ILogger>();
+        LoggerMock.Setup(x => x.ForContext(It.IsAny<Type>())).Returns(LoggerMock.Object);
+        
         EventAggregatorMock = new Mock<IEventAggregator>();
         SshClientServiceMock = new Mock<ISshClientService>();
         WfbConfContentUpdatedEventMock = new Mock<WfbConfContentUpdatedEvent>();
