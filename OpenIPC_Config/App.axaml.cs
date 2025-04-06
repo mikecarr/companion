@@ -210,12 +210,13 @@ public class App : Application
 
         // Step 3: Initialize logger (resolve it from service provider)
         Log.Logger = ServiceProvider.GetRequiredService<ILogger>();
-
-        Log.Information(
+        var logger = Log.ForContext<App>();
+        
+        logger.Information(
             "**********************************************************************************************");
-        Log.Information($"Starting up log for OpenIPC Configurator v{VersionHelper.GetAppVersion()}");
-        Log.Information("Logger initialized successfully.");
-        Log.Information("Starting up....");
+        logger.Information($"Starting up log for OpenIPC Configurator {VersionHelper.GetAppVersion()}");
+        logger.Information("Logger initialized successfully.");
+        logger.Information("Starting up....");
 
         // check for updates
         if (_ShouldCheckForUpdates)

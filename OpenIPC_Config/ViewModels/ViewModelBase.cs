@@ -19,7 +19,9 @@ public abstract class ViewModelBase : ObservableObject
         ISshClientService sshClientService,
         IEventSubscriptionService eventSubscriptionService)
     {
-        Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        //Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        Logger = logger?.ForContext(GetType()) ?? 
+                 throw new ArgumentNullException(nameof(logger));
         SshClientService = sshClientService ?? throw new ArgumentNullException(nameof(sshClientService));
         EventSubscriptionService = eventSubscriptionService ??
                                    throw new ArgumentNullException(nameof(eventSubscriptionService));

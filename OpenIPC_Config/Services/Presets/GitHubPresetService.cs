@@ -22,7 +22,8 @@ public class GitHubPresetService : IGitHubPresetService
 
     public GitHubPresetService(ILogger logger, HttpClient? httpClient = null)
     {
-        _logger = logger;
+        _logger = logger?.ForContext(GetType()) ?? 
+                 throw new ArgumentNullException(nameof(logger));
         _httpClient = httpClient ?? new HttpClient();
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "OpenIPC-Config");
     }

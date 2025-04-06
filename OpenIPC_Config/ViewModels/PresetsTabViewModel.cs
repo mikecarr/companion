@@ -100,7 +100,8 @@ public partial class PresetsTabViewModel : ViewModelBase
     {
         _gitHubPresetService = gitHubPresetService;
         _presetService = presetService;
-        _logger = logger;
+        _logger = logger?.ForContext(GetType()) ?? 
+                 throw new ArgumentNullException(nameof(logger));
         _httpClient = new HttpClient();
 
         SubscribeToEvents();

@@ -48,7 +48,8 @@ public class PresetService : IPresetService
         IEventSubscriptionService eventSubscriptionService,
         IYamlConfigService yamlConfigService)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger?.ForContext(GetType()) ?? 
+                 throw new ArgumentNullException(nameof(logger));
         _sshClientService = sshClientService ?? throw new ArgumentNullException(nameof(sshClientService));
         _eventSubscriptionService = eventSubscriptionService ??
                                     throw new ArgumentNullException(nameof(eventSubscriptionService));
