@@ -1,5 +1,9 @@
 name: App Build and Release
 
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   actions: read
@@ -25,6 +29,34 @@ jobs:
         
 
     steps:
+      # Free disk space on Ubuntu runners (most common for space issues)
+      - name: Free Disk Space (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          
+          # Remove large packages
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          
+          # Clean Docker (if installed)
+          docker system prune -af || true
+          
+          # Clean apt cache
+          sudo apt clean
+          
+          # Remove .NET SDKs that we don't need
+          sudo rm -rf /usr/share/dotnet/sdk/7.*
+          sudo rm -rf /usr/share/dotnet/sdk/6.*
+          sudo rm -rf /usr/share/dotnet/sdk/5.*
+          sudo rm -rf /usr/share/dotnet/sdk/3.*
+          
+          echo "Disk space after cleanup:"
+          df -h      
+
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -51,6 +83,13 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj
 
+      # Clean up before build to free space
+      - name: Clean build directories
+        run: |
+          rm -rf ./OpenIPC_Config.Desktop/bin || true
+          rm -rf ./OpenIPC_Config.Desktop/obj || true
+        shell: bash  
+
       - name: Build project
         run: dotnet build OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj --configuration Release
 
@@ -60,16 +99,24 @@ jobs:
 
       - name: Publish Project
         run: |
+          # Only publish for the current matrix architecture
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-arm64 --self-contained -p:PublishSingleFile=true
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-${{ matrix.arch }} --self-contained -p:PublishSingleFile=true
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-${{ matrix.arch }} --self-contained -p:PublishSingleFile=true
           else
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-${{ matrix.arch }} --self-contained -p:PublishSingleFile=true
           fi
+          # if [[ "${{ runner.os }}" == "Windows" ]]; then
+          #   dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true
+          #   dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-arm64 --self-contained -p:PublishSingleFile=true
+          # elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          #   dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true
+          #   dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-arm64 --self-contained -p:PublishSingleFile=true
+          # else
+          #   dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true
+          #   dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true
+          # fi
         shell: bash
       
       # Packaging macOS .app bundle
