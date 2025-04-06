@@ -50,10 +50,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
     [ObservableProperty] private string _selectedSerialPort;
     [ObservableProperty] private string _telemetryContent;
     
-    public bool IsAlinkDroneDisabled => !IsAlinkDroneEnabled;
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsAlinkDroneDisabled))]
-    private bool _isAlinkDroneEnabled;
+    
 
     
     
@@ -133,8 +130,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
     public ICommand RemoveMSPOSDExtraCommand { get; private set; }
     public ICommand SaveAndRestartTelemetryCommand { get; private set; }
     
-    // Command property for toggling alink_drone
-    public ICommand ToggleAlinkDroneCommand { get; set; }
+    
     
     #endregion
 
@@ -185,7 +181,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
         RemoveMSPOSDExtraCommand = new RelayCommand(RemoveMSPOSDExtra);
         SaveAndRestartTelemetryCommand = new RelayCommand(SaveAndRestartTelemetry);
         // Initialize the ToggleAlinkDroneCommand properly
-        ToggleAlinkDroneCommand = new RelayCommand(async () => await ToggleAlinkDrone());
+        
     }
 
     private void SubscribeToEvents()
@@ -198,8 +194,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
         EventSubscriptionService.Subscribe<WfbYamlContentUpdatedEvent, WfbYamlContentUpdatedMessage>(
             OnWfbYamlContentUpdated);
         
-        // Subscribe to alink drone status updates
-        EventSubscriptionService.Subscribe<AlinkDroneStatusEvent, bool>(status => IsAlinkDroneEnabled = status);
+        
     }
     #endregion
 
@@ -624,81 +619,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
             _yamlConfig.Remove(key);
     }
     
-    // Method to toggle the alink_drone status
-    private async Task ToggleAlinkDrone()
-    {
-        try
-        {
-            if (IsAlinkDroneEnabled)
-            {
-                // If enabled, disable it
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,DeviceCommands.RemoveAlinkDroneFromRcLocal);
-            }
-            else
-            {
-                // If disabled, enable it
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,DeviceCommands.AddAlinkDroneToRcLocal);
-            }
-        
-            // Refresh status after toggling
-            await CheckAlinkDroneStatus();
-        }
-        catch (Exception ex)
-        {
-            // Handle any errors
-            // You might want to log this or show a message to the user
-        }
-    }
     
-    private bool _isUpdatingAlinkDroneStatus = false;
-
-    partial void OnIsAlinkDroneEnabledChanged(bool value)
-    {
-        if (CanConnect && !_isUpdatingAlinkDroneStatus)
-        {
-            _ = ApplyAlinkDroneStatus(value);
-        }
-    }
-
-    // Method to check the current status
-
-    private async Task CheckAlinkDroneStatus()
-    {
-        if (CanConnect)
-        {
-            _isUpdatingAlinkDroneStatus = true;
-            try
-            {
-                var cts = new CancellationTokenSource(30000);
-                var cmdResult = await SshClientService.ExecuteCommandWithResponseAsync(DeviceConfig.Instance, DeviceCommands.IsAlinkDroneEnabled, cts.Token);
-                IsAlinkDroneEnabled = cmdResult.Result.Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
-                cts.Dispose();
-            }
-            finally
-            {
-                _isUpdatingAlinkDroneStatus = false;
-            }
-        }
-    }
-
-    private async Task ApplyAlinkDroneStatus(bool enable)
-    {
-        try
-        {
-            if (enable)
-            {
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,DeviceCommands.AddAlinkDroneToRcLocal);
-            }
-            else
-            {
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,DeviceCommands.RemoveAlinkDroneFromRcLocal);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex, "Error setting Alink Drone status");
-        }
-    }
 
     
     

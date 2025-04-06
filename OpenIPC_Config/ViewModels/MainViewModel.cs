@@ -124,6 +124,8 @@ public partial class MainViewModel : ViewModelBase
                 _serviceProvider.GetRequiredService<SetupTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Firmware", "avares://OpenIPC_Config/Assets/Icons/iconair_firmware_dark.svg",
                 _serviceProvider.GetRequiredService<FirmwareTabViewModel>(), IsTabsCollapsed));
+            Tabs.Add(new TabItemViewModel("Advanced", "avares://OpenIPC_Config/Assets/Icons/iconair_advanced_dark.svg",
+                _serviceProvider.GetRequiredService<AdvancedTabViewModel>(), IsTabsCollapsed));
         }
         else if (deviceType == DeviceType.Radxa)
         {
