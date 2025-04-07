@@ -12,9 +12,12 @@ namespace OpenIPC_Config.Services
         private readonly HttpClient _httpClient;
         private readonly string _cacheKey = "GitHubData"; // Unique key for your data
         private readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(120); // Cache for 1 hour
-
-        public GitHubService(IMemoryCache cache, HttpClient httpClient)
+        private readonly ILogger _logger;
+        
+        public GitHubService(IMemoryCache cache, HttpClient httpClient, ILogger logger)
         {
+            _logger = logger?.ForContext(GetType()) ?? 
+                      throw new ArgumentNullException(nameof(logger));
             _cache = cache ?? throw new ArgumentNullException(nameof(cache));
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         }
@@ -23,7 +26,7 @@ namespace OpenIPC_Config.Services
         {
             if (_cache.TryGetValue(_cacheKey, out string cachedData))
             {
-                Log.Information("GitHub API data retrieved from cache.");
+                _logger.Information("GitHub API data retrieved from cache.");
                 return cachedData;
             }
 
@@ -40,13 +43,13 @@ namespace OpenIPC_Config.Services
                     .SetPriority(CacheItemPriority.Normal);   // Low priority for eviction
 
                 _cache.Set(_cacheKey, response, cacheEntryOptions);
-                Log.Information("Data retrieved from GitHub API and cached.");
+                _logger.Information("Data retrieved from GitHub API and cached.");
                 return response;
             }
             catch (HttpRequestException ex)
             {
                 // Handle API errors gracefully (log, throw, etc.)
-                Log.Error($"Error calling GitHub API: {ex.Message}");
+                _logger.Error($"Error calling GitHub API: {ex.Message}");
                 return null; // Or throw the exception, depending on your needs
             }
         }
