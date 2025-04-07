@@ -57,6 +57,26 @@ jobs:
           echo "Disk space after cleanup:"
           df -h      
 
+      # Free disk space on MacOS runners
+      - name: Free Disk Space (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          
+          # Remove unnecessary files
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /opt/CodeQL
+          
+          # Clean Homebrew cache
+          brew cleanup
+          brew autoremove
+          
+          echo "Disk space after cleanup:"
+          df -h
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -145,32 +165,6 @@ jobs:
           echo "Setting key partition list"
           security set-key-partition-list -S apple-tool:,apple: -s -k $MY_KEYCHAIN_PASSWORD build.keychain
 
-      # - name: Use the custom keychain for signing
-      #   if: matrix.os == 'macos-latest'
-      #   run: |
-      #     # Print current directory contents
-      #     pwd
-      #     ls -la
-      
-      #     # Find the .app directory
-      #     find . -name "*.app" -type d
-      
-      #     # Locate the actual path of the .app bundle
-      #     APP_PATH=$(find . -name "OpenIPC_Config.app" -type d | head -n 1)
-          
-      #     if [ -z "$APP_PATH" ]; then
-      #       echo "Error: Could not find .app bundle"
-      #       exit 1
-      #     fi
-      
-      #     echo "Found .app bundle at: $APP_PATH"
-      
-      #     # security list-keychains -d user -s build.keychain-db
-      #     # security find-identity
-      
-      #     # echo "Using custom keychain for codesign"
-      #     # codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" "$APP_PATH"
-      #   shell: bash
         
       - name: Package and Sign macOS Build
         if: matrix.os == 'macos-latest'
@@ -180,7 +174,12 @@ jobs:
           PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/osx-${{ matrix.arch }}/publish"
           APP_DIR="${APP_NAME}.app"
           DMG_NAME="OpenIPC-Config-macos-${{ matrix.arch }}.dmg"
-          
+
+          # Aggressively clean unnecessary files
+          find "${PUBLISH_DIR}" -name "*.pdb" -delete
+          find "${PUBLISH_DIR}" -name "*.config" -delete
+          find "${PUBLISH_DIR}" -name "*.xml" -delete
+    
           # Create .app bundle (existing code)
           mkdir -p "${APP_DIR}/Contents/MacOS"
           mkdir -p "${APP_DIR}/Contents/Resources"
@@ -327,6 +326,7 @@ jobs:
         with:
           name: OpenIPC-Config-macos-${{ matrix.arch }}.dmg
           path: OpenIPC-Config-macos-${{ matrix.arch }}.dmg
+          compression-level: 9
 
       - name: Upload Windows Artifact
         if: matrix.os == 'windows-latest'
@@ -334,6 +334,7 @@ jobs:
         with:
           name: OpenIPC-Config-windows-${{ matrix.arch }}
           path: OpenIPC-Config-windows-${{ matrix.arch }}.zip
+          compression-level: 9
 
       - name: Upload Ubuntu Artifact
         if: matrix.os == 'ubuntu-latest'
@@ -341,6 +342,7 @@ jobs:
         with:
           name: OpenIPC-Config-linux-${{ matrix.arch }}
           path: OpenIPC-Config-linux-${{ matrix.arch }}.zip
+          compression-level: 9
 
   release:
     runs-on: ubuntu-latest
