@@ -169,6 +169,13 @@ jobs:
       - name: Package and Sign macOS Build
         if: matrix.os == 'macos-latest'
         run: |
+
+          echo "Disk space before package and sign:"
+          df -h
+
+          echo "Directory Structure Before:"
+          ls -al
+          
           # Define paths
           APP_NAME="OpenIPC_Config"
           PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/osx-${{ matrix.arch }}/publish"
@@ -220,15 +227,34 @@ jobs:
           # Verify signature
           codesign --verify --verbose=4 "${APP_DIR}"
           spctl --assess --type execute --verbose "${APP_DIR}"
-      
+
+          
           # Create DMG
           mkdir dmg_build
           cp -R "${APP_DIR}" dmg_build/
           ln -s /Applications dmg_build/Applications
-      
+
+          # Before DMG creation
+          echo "Contents of dmg_build:"
+          ls -lR dmg_build
+          
+          echo "Total size of dmg_build:"
+          du -sh dmg_build
+          
+          # Detailed disk space check
+          df -h
+                
           # Verbose DMG creation with size estimation
           echo "Creating DMG..."
-          hdiutil create -volname "OpenIPC Config" -srcfolder dmg_build -ov -format UDZO "${DMG_NAME}"
+          # hdiutil create -volname "OpenIPC Config" -srcfolder dmg_build -ov -format UDZO "${DMG_NAME}"
+          hdiutil create \
+            -volname "OpenIPC Config" \
+            -srcfolder dmg_build \
+            -ov \
+            -format UDZO \
+            -fs HFS+ \
+            -size 500m \
+            "${DMG_NAME}"
       
           # Cleanup 
           rm -rf dmg_build
