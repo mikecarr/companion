@@ -19,12 +19,13 @@ public class EventSubscriptionService : IEventSubscriptionService
     public EventSubscriptionService(IEventAggregator eventAggregator, ILogger logger)
     {
         _eventAggregator = eventAggregator ?? throw new ArgumentNullException(nameof(eventAggregator));
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger?.ForContext(GetType()) ?? 
+                  throw new ArgumentNullException(nameof(logger));
     }
-
+    
     public void Subscribe<TEvent, TPayload>(Action<TPayload> action) where TEvent : PubSubEvent<TPayload>, new()
     {
-        _eventAggregator.GetEvent<TEvent>().Subscribe(action);
+        _eventAggregator.GetEvent<TEvent>().Subscribe(action, ThreadOption.UIThread);
         _logger.Verbose($"Subscribed to event {typeof(TEvent).Name}");
     }
 
