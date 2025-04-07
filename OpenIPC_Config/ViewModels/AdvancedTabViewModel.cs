@@ -22,16 +22,7 @@ public partial class AdvancedTabViewModel : ViewModelBase
 {
     #region Fields
 
-    private bool _isAdaptiveLinkInstalling;
-    private string _adaptiveLinkInstallStatus = "";
-    private int _adaptiveLinkInstallProgress;
-    private string _customScriptContent = "";
-    private string _scriptFilename = "";
-    private string _selectedScriptType;
     private readonly IYamlConfigService _yamlConfigService;
-    private bool _isAdaptiveLinkInstalled;
-    private bool _isAdaptiveLinkRunning;
-    private string _adaptiveLinkVersion = "Unknown";
 
     #endregion
 
@@ -48,52 +39,19 @@ public partial class AdvancedTabViewModel : ViewModelBase
 
     public bool NotInstalled => !IsAdaptiveLinkInstalled;
 
-    public bool CanInstall
-    {
-        get => !IsAdaptiveLinkInstalling && DeviceConfig.Instance.CanConnect;
-    }
+    [ObservableProperty] private string _adaptiveLinkInstallStatus = "";
 
-    public bool IsAdaptiveLinkInstalling
-    {
-        get => _isAdaptiveLinkInstalling;
-        set => SetProperty(ref _isAdaptiveLinkInstalling, value);
-    }
 
-    public string AdaptiveLinkInstallStatus
-    {
-        get => _adaptiveLinkInstallStatus;
-        set => SetProperty(ref _adaptiveLinkInstallStatus, value);
-    }
+    [ObservableProperty] private bool _isAdaptiveLinkInstalled;
 
-    public int AdaptiveLinkInstallProgress
-    {
-        get => _adaptiveLinkInstallProgress;
-        set => SetProperty(ref _adaptiveLinkInstallProgress, value);
-    }
+    [ObservableProperty] private bool _isAdaptiveLinkRunning;
 
-    public bool IsAdaptiveLinkInstalled
-    {
-        get => _isAdaptiveLinkInstalled;
-        set => SetProperty(ref _isAdaptiveLinkInstalled, value);
-    }
-
-    public bool IsAdaptiveLinkRunning
-    {
-        get => _isAdaptiveLinkRunning;
-        set => SetProperty(ref _isAdaptiveLinkRunning, value);
-    }
-
-    public string AdaptiveLinkVersion
-    {
-        get => _adaptiveLinkVersion;
-        set => SetProperty(ref _adaptiveLinkVersion, value);
-    }
+    [ObservableProperty] private string _adaptiveLinkVersion = "Unknown";
 
     #endregion
 
     #region Commands
 
-    public IAsyncRelayCommand InstallAdaptiveLinkCommand { get; }
     public IAsyncRelayCommand CheckAdaptiveLinkStatusCommand { get; }
     public IAsyncRelayCommand GenerateSystemReportCommand { get; }
     public IAsyncRelayCommand ViewSystemLogsCommand { get; }
@@ -116,7 +74,6 @@ public partial class AdvancedTabViewModel : ViewModelBase
         _yamlConfigService = yamlConfigService ?? throw new ArgumentNullException(nameof(yamlConfigService));
 
         // Initialize commands
-        InstallAdaptiveLinkCommand = new AsyncRelayCommand(InstallAdaptiveLinkOfflineAsync);
         CheckAdaptiveLinkStatusCommand = new AsyncRelayCommand(CheckAdaptiveLinkStatusAsync);
         GenerateSystemReportCommand = new AsyncRelayCommand(GenerateSystemReportAsync);
         ViewSystemLogsCommand = new AsyncRelayCommand(ViewSystemLogsAsync);
@@ -141,16 +98,20 @@ public partial class AdvancedTabViewModel : ViewModelBase
                 return;
             }
 
-            string command = IsAlinkDroneEnabled
-                ? DeviceCommands.RemoveAlinkDroneFromRcLocal
-                : DeviceCommands.AddAlinkDroneToRcLocal;
+            // Toggle the value - this will be from the current to the new state
+            bool newValue = !IsAlinkDroneEnabled;
+
+            // Execute the appropriate command based on the NEW value
+            string command = newValue
+                ? DeviceCommands.AddAlinkDroneToRcLocal
+                : DeviceCommands.RemoveAlinkDroneFromRcLocal;
 
             var cts = new CancellationTokenSource(TimeSpan.FromSeconds(60)); // 60 seconds timeout
             var result =
                 await SshClientService.ExecuteCommandWithResponseAsync(DeviceConfig.Instance, command, cts.Token);
 
-            // Refresh status to confirm changes
-            await CheckAlinkDroneStatusAsync();
+            // Update the property WITHOUT triggering the changed handler (use SetProperty directly)
+            IsAlinkDroneEnabled = newValue;
 
             UpdateUIMessage(IsAlinkDroneEnabled
                 ? "Adaptive Link enabled on boot."
@@ -168,19 +129,10 @@ public partial class AdvancedTabViewModel : ViewModelBase
     }
 
     private bool _isUpdatingAlinkDroneStatus = false;
-
-    partial void OnIsAlinkDroneEnabledChanged(bool value)
-    {
-        if (CanConnect && !_isUpdatingAlinkDroneStatus)
-        {
-            _ = ApplyAlinkDroneStatus(value);
-        }
-    }
-
-    // Method to check the current status
-
+    
     private async Task CheckAlinkDroneStatusAsync()
     {
+        Logger.Verbose("Checking Adaptive Link status");
         if (!DeviceConfig.Instance.CanConnect || _isUpdatingAlinkDroneStatus)
             return;
 
@@ -211,261 +163,6 @@ public partial class AdvancedTabViewModel : ViewModelBase
         }
     }
 
-
-    private async Task ApplyAlinkDroneStatus(bool enable)
-    {
-        _isUpdatingAlinkDroneStatus = true;
-        try
-        {
-            if (enable)
-            {
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,
-                    DeviceCommands.AddAlinkDroneToRcLocal);
-            }
-            else
-            {
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,
-                    DeviceCommands.RemoveAlinkDroneFromRcLocal);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex, "Error setting Alink Drone status");
-        }
-        finally
-        {
-            _isUpdatingAlinkDroneStatus = false;
-        }
-    }
-
-    private async Task InstallAdaptiveLinkOfflineAsync()
-    {
-        try
-        {
-            var deviceConfig = DeviceConfig.Instance;
-            if (!deviceConfig.CanConnect)
-            {
-                UpdateUIMessage("Device not connected. Cannot install Adaptive Link.");
-                return;
-            }
-
-            // Set UI state to installing
-            IsAdaptiveLinkInstalling = true;
-            AdaptiveLinkInstallProgress = 0;
-            AdaptiveLinkInstallStatus = "Starting installation...";
-
-            Logger.Information("Starting Adaptive Link installation via local PC download");
-
-            // Create temporary directory
-            string tempPath = Path.Combine(Path.GetTempPath(), "AdaptiveLinkTemp_" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(tempPath);
-            Logger.Information("Created temporary directory: {TempPath}", tempPath);
-
-            try
-            {
-                // Define GitHub repository info
-                const string repoOwner = "OpenIPC";
-                const string repoName = "adaptive-link";
-
-                // Step 1: Download files from GitHub to local temp directory
-                AdaptiveLinkInstallStatus = "Downloading files from GitHub...";
-                AdaptiveLinkInstallProgress = 10;
-
-                // Required files list
-                var requiredFiles = new Dictionary<string, string>
-                {
-                    { "alink_drone", "/usr/bin/alink_drone" },
-                    { "txprofiles.conf", "/etc/txprofiles.conf" },
-                    { "alink.conf", "/etc/alink.conf" }
-                };
-
-                // Download each file from the latest release
-                using (var httpClient = new HttpClient())
-                {
-                    // GitHub API requires a user agent
-                    httpClient.DefaultRequestHeaders.Add("User-Agent", "AdaptiveLinkInstaller");
-
-                    // Get the latest release info
-                    AdaptiveLinkInstallStatus = "Getting latest release information...";
-                    var releasesJson =
-                        await httpClient.GetStringAsync(
-                            $"https://api.github.com/repos/{repoOwner}/{repoName}/releases");
-
-                    // Parse JSON to get download URLs (using System.Text.Json)
-                    using (JsonDocument doc = JsonDocument.Parse(releasesJson))
-                    {
-                        // Get the first (latest) release
-                        var latestRelease = doc.RootElement[0];
-                        var assets = latestRelease.GetProperty("assets");
-
-                        foreach (var file in requiredFiles.Keys)
-                        {
-                            AdaptiveLinkInstallStatus = $"Downloading {file}...";
-
-                            // Find the asset with matching name
-                            string downloadUrl = null;
-                            foreach (var asset in assets.EnumerateArray())
-                            {
-                                var name = asset.GetProperty("name").GetString();
-                                if (name == file)
-                                {
-                                    downloadUrl = asset.GetProperty("browser_download_url").GetString();
-                                    break;
-                                }
-                            }
-
-                            if (string.IsNullOrEmpty(downloadUrl))
-                            {
-                                throw new Exception($"File {file} not found in the latest release");
-                            }
-
-                            // Download the file
-                            var fileBytes = await httpClient.GetByteArrayAsync(downloadUrl);
-                            await File.WriteAllBytesAsync(Path.Combine(tempPath, file), fileBytes);
-                            Logger.Information("Downloaded {File} to {Path}", file, Path.Combine(tempPath, file));
-                        }
-                    }
-                }
-
-                // Step 2: Upload files from temp directory to device
-                AdaptiveLinkInstallStatus = "Copying files to device...";
-                AdaptiveLinkInstallProgress = 50;
-
-                foreach (var file in requiredFiles)
-                {
-                    var localFilePath = Path.Combine(tempPath, file.Key);
-                    var remoteFilePath = file.Value;
-
-                    AdaptiveLinkInstallStatus = $"Copying {file.Key} to device...";
-                    await SshClientService.UploadFileAsync(
-                        deviceConfig,
-                        localFilePath,
-                        remoteFilePath
-                    );
-                }
-
-                // Step 3: Make the drone file executable
-                AdaptiveLinkInstallStatus = "Making alink_drone executable...";
-                AdaptiveLinkInstallProgress = 70;
-
-                var cts = new CancellationTokenSource(10000); // 10 seconds
-                var cancellationToken = cts.Token;
-                var chmodResult = await SshClientService.ExecuteCommandWithResponseAsync(deviceConfig,
-                    "chmod +x /usr/bin/alink_drone", cancellationToken);
-
-                if (chmodResult?.ExitStatus != 0)
-                {
-                    AdaptiveLinkInstallStatus = $"Chmod failed: {chmodResult?.Error ?? "Unknown error"}";
-                    throw new Exception("Failed to make alink_drone executable");
-                }
-
-                // Step 4: Configure required settings
-                AdaptiveLinkInstallStatus = "Configuring Adaptive Link...";
-                AdaptiveLinkInstallProgress = 80;
-
-                // Run necessary configuration commands
-                var configCommands = new List<string>
-                {
-                    "cli -s .video0.qpDelta -12",
-                    "cli -s .fpv.enabled true",
-                    "cli -s .fpv.noiseLevel 0",
-                    "sed -i 's/tunnel=.*/tunnel=true/' /etc/datalink.conf",
-                    "sed -i -e '$i \\/usr/bin/alink_drone --ip 10.5.0.10 --port 9999 &' /etc/rc.local"
-                };
-
-                foreach (var cmd in configCommands)
-                {
-                    cts = new CancellationTokenSource(10000);
-                    cancellationToken = cts.Token;
-                    var cmdResult = await SshClientService.ExecuteCommandWithResponseAsync(
-                        deviceConfig, cmd, cancellationToken);
-
-                    if (cmdResult?.ExitStatus != 0)
-                    {
-                        Logger.Warning("Command {Cmd} finished with exit code {Code}",
-                            cmd, cmdResult?.ExitStatus);
-                        // Continue despite errors for flexibility
-                    }
-                }
-
-                // Step 5: Prepare for reboot
-                AdaptiveLinkInstallStatus = "Installation complete. Preparing to reboot the device...";
-                AdaptiveLinkInstallProgress = 90;
-
-                // Let the user know before rebooting
-                UpdateUIMessage("Adaptive Link installation successful. Device will reboot in 5 seconds.");
-
-                // Wait briefly to ensure the message is seen
-                await Task.Delay(5000);
-
-                // Step 6: Reboot the device
-                AdaptiveLinkInstallStatus = "Rebooting device...";
-                AdaptiveLinkInstallProgress = 100;
-                await SshClientService.ExecuteCommandAsync(deviceConfig, "reboot");
-
-                // Reset UI state after a brief delay (device will disconnect due to reboot)
-                await Task.Delay(3000);
-                IsAdaptiveLinkInstalling = false;
-
-                // Inform the user
-                UpdateUIMessage("Device is rebooting. Please reconnect after the reboot completes.");
-            }
-            finally
-            {
-                // Clean up temp directory when done
-                try
-                {
-                    if (Directory.Exists(tempPath))
-                    {
-                        Directory.Delete(tempPath, true);
-                        Logger.Information("Cleaned up temporary directory");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.Warning(ex, "Failed to clean up temporary directory: {ErrorMessage}", ex.Message);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex, "Failed to install Adaptive Link");
-            AdaptiveLinkInstallStatus = $"Installation failed: {ex.Message}";
-            UpdateUIMessage($"Error installing Adaptive Link: {ex.Message}");
-
-            // Reset UI state
-            IsAdaptiveLinkInstalling = false;
-        }
-    }
-
-
-// Helper method to extract files to the temp directory - implement this based on how you store the files
-    private void ExtractFilesToTempDirectory(string tempPath, List<string> fileNames)
-    {
-        // Implementation depends on how you're storing these files in your application
-        // Options include:
-        // 1. Embedded resources
-        // 2. Files included in your application folder
-        // 3. Files from a zip package
-
-        // Example for embedded resources:
-        foreach (var fileName in fileNames)
-        {
-            var resourceName = $"YourNamespace.Resources.{fileName}";
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName))
-            {
-                if (stream == null)
-                {
-                    throw new FileNotFoundException($"Required resource not found: {resourceName}");
-                }
-
-                using (var fileStream = new FileStream(Path.Combine(tempPath, fileName), FileMode.Create))
-                {
-                    stream.CopyTo(fileStream);
-                }
-            }
-        }
-    }
 
     private async Task CheckAdaptiveLinkStatusAsync()
     {
@@ -913,24 +610,31 @@ public partial class AdvancedTabViewModel : ViewModelBase
 
     private void OnAppMessage(AppMessage message)
     {
-        // Ensure update happens on UI thread
-        Dispatcher.UIThread.Invoke(async () =>
+        // Use InvokeAsync instead of Invoke for async lambdas
+        Dispatcher.UIThread.InvokeAsync(async () =>
         {
-            // Force update even if the value seems the same
             bool wasConnected = CanConnect;
             if (CanConnect != message.CanConnect)
             {
                 CanConnect = message.CanConnect;
             }
 
-            // Explicitly trigger property changed notification
             OnPropertyChanged(nameof(CanConnect));
 
-            // If we've just connected, check the status
             if (!wasConnected && CanConnect)
             {
-                await CheckAdaptiveLinkStatusAsync();
-                await CheckAlinkDroneStatusAsync();
+                try 
+                {
+                    Logger.Debug("Starting Adaptive Link status check");
+                    await CheckAdaptiveLinkStatusAsync();
+                    Logger.Debug("Starting Alink Drone status check");
+                    await CheckAlinkDroneStatusAsync();
+                    Logger.Debug("Completed initialization checks");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error(ex, "Error during initialization checks");
+                }
             }
         });
     }
