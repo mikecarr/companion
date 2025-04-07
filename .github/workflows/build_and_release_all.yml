@@ -214,11 +214,29 @@ jobs:
       - name: Use the custom keychain for signing
         if: matrix.os == 'macos-latest'
         run: |
+          # Print current directory contents
+          pwd
+          ls -la
+      
+          # Find the .app directory
+          find . -name "*.app" -type d
+      
+          # Locate the actual path of the .app bundle
+          APP_PATH=$(find . -name "OpenIPC_Config.app" -type d | head -n 1)
+          
+          if [ -z "$APP_PATH" ]; then
+            echo "Error: Could not find .app bundle"
+            exit 1
+          fi
+      
+          echo "Found .app bundle at: $APP_PATH"
+      
           security list-keychains -d user -s build.keychain-db
           security find-identity
-
+      
           echo "Using custom keychain for codesign"
-          codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" ./OpenIPC_Config.app
+          codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" "$APP_PATH"
+        shell: bash
   
       - name: Verify the signature
         if: matrix.os == 'macos-latest'
