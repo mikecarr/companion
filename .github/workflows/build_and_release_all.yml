@@ -267,6 +267,18 @@ jobs:
           APP_NAME="OpenIPC-Config"
           PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/linux-${{ matrix.arch }}/publish"
           
+          # Print publish directory contents for debugging
+          echo "Contents of publish directory:"
+          ls -la "$PUBLISH_DIR"
+          
+          # Find the actual executable
+          EXECUTABLE=$(find "$PUBLISH_DIR" -name "OpenIPC_Config.Desktop" -type f)
+          
+          if [ -z "$EXECUTABLE" ]; then
+            echo "Error: Could not find executable"
+            exit 1
+          fi
+          
           # Create Assets directory if it doesn't exist
           mkdir -p "${PUBLISH_DIR}/Assets"
           
@@ -281,15 +293,16 @@ jobs:
           cat << EOF > "$DESKTOP_FILE"
           [Desktop Entry]
           Name=OpenIPC Config
-          Exec=./OpenIPC-Config.Desktop
+          Exec=$(basename "$EXECUTABLE")
           Icon=$ICON_PATH
           Type=Application
           Terminal=false
           Categories=Utility;
           EOF
-      
+          
           # Ensure executable permissions
-          chmod +x "${PUBLISH_DIR}/OpenIPC-Config.Desktop"
+          chmod +x "$EXECUTABLE"
+          chmod +x "$DESKTOP_FILE"
         shell: bash
       
       # Windows Icon and Packaging
