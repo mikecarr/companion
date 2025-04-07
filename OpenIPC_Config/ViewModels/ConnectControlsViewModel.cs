@@ -224,7 +224,7 @@ public partial class ConnectControlsViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
-            Logger.Error(ex, "Error occurred during ping");
+            Logger.Error( "Error occurred during ping");
             PingStatusColor = _offlineColorBrush;
         }
     }
