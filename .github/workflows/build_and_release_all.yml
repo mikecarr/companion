@@ -119,19 +119,26 @@ jobs:
           # fi
         shell: bash
       
-      # Packaging macOS .app bundle
-      - name: Package macOS .app
+      - name: Package and Compress macOS Build
         if: matrix.os == 'macos-latest'
         run: |
+          # Print initial disk space
+          echo "Initial Disk Space:"
+          df -h
+      
+          # Define paths
           APP_NAME="OpenIPC_Config"
           PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/osx-${{ matrix.arch }}/publish"
           APP_DIR="${APP_NAME}.app"
+          DMG_NAME="OpenIPC-Config-macos-${{ matrix.arch }}.dmg"
           
+          # Create .app bundle
           mkdir -p "${APP_DIR}/Contents/MacOS"
           mkdir -p "${APP_DIR}/Contents/Resources"
           cp -R "${PUBLISH_DIR}/"* "${APP_DIR}/Contents/MacOS/"
           cp ./OpenIPC_Config/Assets/Icons/OpenIPC.icns "${APP_DIR}/Contents/Resources/${APP_NAME}.icns"
-
+      
+          # Create Info.plist (existing code)
           cat << EOF > "${APP_DIR}/Contents/Info.plist"
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -154,8 +161,29 @@ jobs:
           </dict>
           </plist>
           EOF
-
+      
           chmod +x "${APP_DIR}/Contents/MacOS/${APP_NAME}.Desktop"
+      
+          # Create DMG
+          mkdir dmg_build
+          cp -R "${APP_DIR}" dmg_build/
+          ln -s /Applications dmg_build/Applications
+      
+          # Verbose DMG creation with size estimation
+          echo "Creating DMG..."
+          hdiutil create -volname "OpenIPC Config" -srcfolder dmg_build -ov -format UDZO "${DMG_NAME}"
+      
+          # Cleanup and verify
+          rm -rf dmg_build
+          rm -rf "${APP_DIR}"
+      
+          # Print final disk space
+          echo "Final Disk Space:"
+          df -h
+      
+          # Verify DMG
+          hdiutil verify "${DMG_NAME}"
+        shell: bash
 
       - name: Decode signing certificate
         if: matrix.os == 'macos-latest'
@@ -265,8 +293,11 @@ jobs:
             # Create the .dmg with the Applications alias
             hdiutil create -volname "OpenIPC Config" -srcfolder "${BUILD_DIR}" -ov -format UDZO "${DMG_NAME}"
             
-            # Clean up the temporary build folder
+            # Aggressive cleanup
             rm -rf "${BUILD_DIR}"
+            rm -rf "${APP_NAME}"
+            df -h  # Check disk space
+            
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
 
             mkdir -p OpenIPC-Config-linux-${{ matrix.arch }}
