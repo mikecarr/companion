@@ -1,5 +1,9 @@
 name: Generate Test Coverage Report
 
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+  
 # Runs on master branch commits, 
 # every commit in a pull request, any published release.
 on:
