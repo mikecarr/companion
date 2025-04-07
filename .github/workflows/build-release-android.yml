@@ -1,5 +1,9 @@
 name: Android App Build
 
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+  
 permissions:
   contents: write
   actions: read
