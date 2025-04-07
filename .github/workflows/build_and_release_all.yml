@@ -119,20 +119,16 @@ jobs:
           # fi
         shell: bash
       
-      - name: Package and Compress macOS Build
+      - name: Package and Sign macOS Build
         if: matrix.os == 'macos-latest'
         run: |
-          # Print initial disk space
-          echo "Initial Disk Space:"
-          df -h
-      
           # Define paths
           APP_NAME="OpenIPC_Config"
           PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/osx-${{ matrix.arch }}/publish"
           APP_DIR="${APP_NAME}.app"
           DMG_NAME="OpenIPC-Config-macos-${{ matrix.arch }}.dmg"
           
-          # Create .app bundle
+          # Create .app bundle (existing code)
           mkdir -p "${APP_DIR}/Contents/MacOS"
           mkdir -p "${APP_DIR}/Contents/Resources"
           cp -R "${PUBLISH_DIR}/"* "${APP_DIR}/Contents/MacOS/"
@@ -164,6 +160,15 @@ jobs:
       
           chmod +x "${APP_DIR}/Contents/MacOS/${APP_NAME}.Desktop"
       
+          # Sign the application
+          security list-keychains -d user -s build.keychain-db
+          security find-identity
+          codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" "${APP_DIR}"
+      
+          # Verify signature
+          codesign --verify --verbose=4 "${APP_DIR}"
+          spctl --assess --type execute --verbose "${APP_DIR}"
+      
           # Create DMG
           mkdir dmg_build
           cp -R "${APP_DIR}" dmg_build/
@@ -173,16 +178,8 @@ jobs:
           echo "Creating DMG..."
           hdiutil create -volname "OpenIPC Config" -srcfolder dmg_build -ov -format UDZO "${DMG_NAME}"
       
-          # Cleanup and verify
+          # Cleanup 
           rm -rf dmg_build
-          rm -rf "${APP_DIR}"
-      
-          # Print final disk space
-          echo "Final Disk Space:"
-          df -h
-      
-          # Verify DMG
-          hdiutil verify "${DMG_NAME}"
         shell: bash
 
       - name: Decode signing certificate
@@ -238,17 +235,17 @@ jobs:
           codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" "$APP_PATH"
         shell: bash
   
-      - name: Verify the signature
-        if: matrix.os == 'macos-latest'
-        run: |
-          codesign --verify --verbose=4 ./OpenIPC_Config.app
-          spctl --assess --type execute --verbose ./OpenIPC_Config.app
+      # - name: Verify the signature
+      #   if: matrix.os == 'macos-latest'
+      #   run: |
+      #     codesign --verify --verbose=4 ./OpenIPC_Config.app
+      #     spctl --assess --type execute --verbose ./OpenIPC_Config.app
 
-      - name: Cleanup custom keychain
-        if: matrix.os == 'macos-latest'
-        run: |
-          echo "Cleaning up the custom keychain"
-          security delete-keychain build.keychain || true
+      # - name: Cleanup custom keychain
+      #   if: matrix.os == 'macos-latest'
+      #   run: |
+      #     echo "Cleaning up the custom keychain"
+      #     security delete-keychain build.keychain || true
 
             
       # Linux Icon and Packaging
@@ -297,23 +294,23 @@ jobs:
         run: |
           echo "Runner OS: ${{ runner.os }}"
           if [[ "${{ runner.os }}" == "macOS" ]]; then
-            DMG_NAME="OpenIPC-Config-macos-${{ matrix.arch }}.dmg"
-            APP_NAME="OpenIPC_Config.app"
-            BUILD_DIR="OpenIPC-Config-macos-${{ matrix.arch }}-dmg-build"
+            # DMG_NAME="OpenIPC-Config-macos-${{ matrix.arch }}.dmg"
+            # APP_NAME="OpenIPC_Config.app"
+            # BUILD_DIR="OpenIPC-Config-macos-${{ matrix.arch }}-dmg-build"
             
-            # Create a temporary folder for the .dmg contents
-            mkdir -p "${BUILD_DIR}"
-            cp -R "${APP_NAME}" "${BUILD_DIR}/"
+            # # Create a temporary folder for the .dmg contents
+            # mkdir -p "${BUILD_DIR}"
+            # cp -R "${APP_NAME}" "${BUILD_DIR}/"
             
-            # Create an alias to the Applications folder
-            ln -s /Applications "${BUILD_DIR}/Applications"
+            # # Create an alias to the Applications folder
+            # ln -s /Applications "${BUILD_DIR}/Applications"
             
-            # Create the .dmg with the Applications alias
-            hdiutil create -volname "OpenIPC Config" -srcfolder "${BUILD_DIR}" -ov -format UDZO "${DMG_NAME}"
+            # # Create the .dmg with the Applications alias
+            # hdiutil create -volname "OpenIPC Config" -srcfolder "${BUILD_DIR}" -ov -format UDZO "${DMG_NAME}"
             
-            # Aggressive cleanup
-            rm -rf "${BUILD_DIR}"
-            rm -rf "${APP_NAME}"
+            # # Aggressive cleanup
+            # rm -rf "${BUILD_DIR}"
+            # rm -rf "${APP_NAME}"
             df -h  # Check disk space
             
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
