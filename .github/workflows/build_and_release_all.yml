@@ -234,34 +234,24 @@ jobs:
           # Cleanup 
           rm -rf dmg_build
         shell: bash
-
-      
-  
-      # - name: Verify the signature
-      #   if: matrix.os == 'macos-latest'
-      #   run: |
-      #     codesign --verify --verbose=4 ./OpenIPC_Config.app
-      #     spctl --assess --type execute --verbose ./OpenIPC_Config.app
-
-      # - name: Cleanup custom keychain
-      #   if: matrix.os == 'macos-latest'
-      #   run: |
-      #     echo "Cleaning up the custom keychain"
-      #     security delete-keychain build.keychain || true
-
             
       # Linux Icon and Packaging
       - name: Set up Icon and .desktop file
         if: matrix.os == 'ubuntu-latest'
         run: |
           APP_NAME="OpenIPC-Config"
-          PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/linux-x64/publish"
-          ICON_PATH="${PUBLISH_DIR}/Assets/OpenIPC.png"
-          DESKTOP_FILE="${PUBLISH_DIR}/${APP_NAME}-App.desktop"
+          PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/linux-${{ matrix.arch }}/publish"
           
-          # Ensure the icon is in the publish directory
-          cp ./OpenIPC_Config/Assets/Icons/OpenIPC.png "$ICON_PATH"
-
+          # Create Assets directory if it doesn't exist
+          mkdir -p "${PUBLISH_DIR}/Assets"
+          
+          # Copy icon to the publish directory
+          cp ./OpenIPC_Config/Assets/Icons/OpenIPC.png "${PUBLISH_DIR}/Assets/OpenIPC.png"
+          
+          # Create .desktop file path
+          DESKTOP_FILE="${PUBLISH_DIR}/${APP_NAME}-App.desktop"
+          ICON_PATH="./Assets/OpenIPC.png"
+          
           # Create .desktop file
           cat << EOF > "$DESKTOP_FILE"
           [Desktop Entry]
@@ -272,6 +262,10 @@ jobs:
           Terminal=false
           Categories=Utility;
           EOF
+      
+          # Ensure executable permissions
+          chmod +x "${PUBLISH_DIR}/OpenIPC-Config.Desktop"
+        shell: bash
       
       # Windows Icon and Packaging
       - name: Set Windows Icon and Package
