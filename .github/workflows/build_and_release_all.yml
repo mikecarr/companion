@@ -118,7 +118,60 @@ jobs:
           #   dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true
           # fi
         shell: bash
+
+      - name: Decode signing certificate
+        if: matrix.os == 'macos-latest'
+        env:
+           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+        run: |
+          echo "$APPLE_CERTIFICATE" | base64 --decode > macos_signing_cert.p12
+          echo "$MACOS_PROVISION_PROFILE" | base64 --decode > macos_provision_profile.mobileprovision
+
+      - name: Create and manage custom keychain
+        if: matrix.os == 'macos-latest'
+        env:
+           MY_KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          echo "Creating custom keychain"
+          security create-keychain -p $MY_KEYCHAIN_PASSWORD build.keychain
+
+          echo "Importing signing certificate"
+          security import macos_signing_cert.p12 -k build.keychain -P $APPLE_CERTIFICATE_PASSWORD -T /usr/bin/codesign
+
+          echo "Unlocking keychain"
+          security unlock-keychain -p $MY_KEYCHAIN_PASSWORD build.keychain
+
+          echo "Setting key partition list"
+          security set-key-partition-list -S apple-tool:,apple: -s -k $MY_KEYCHAIN_PASSWORD build.keychain
+
+      # - name: Use the custom keychain for signing
+      #   if: matrix.os == 'macos-latest'
+      #   run: |
+      #     # Print current directory contents
+      #     pwd
+      #     ls -la
       
+      #     # Find the .app directory
+      #     find . -name "*.app" -type d
+      
+      #     # Locate the actual path of the .app bundle
+      #     APP_PATH=$(find . -name "OpenIPC_Config.app" -type d | head -n 1)
+          
+      #     if [ -z "$APP_PATH" ]; then
+      #       echo "Error: Could not find .app bundle"
+      #       exit 1
+      #     fi
+      
+      #     echo "Found .app bundle at: $APP_PATH"
+      
+      #     # security list-keychains -d user -s build.keychain-db
+      #     # security find-identity
+      
+      #     # echo "Using custom keychain for codesign"
+      #     # codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" "$APP_PATH"
+      #   shell: bash
+        
       - name: Package and Sign macOS Build
         if: matrix.os == 'macos-latest'
         run: |
@@ -182,58 +235,7 @@ jobs:
           rm -rf dmg_build
         shell: bash
 
-      - name: Decode signing certificate
-        if: matrix.os == 'macos-latest'
-        env:
-           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-        run: |
-          echo "$APPLE_CERTIFICATE" | base64 --decode > macos_signing_cert.p12
-          echo "$MACOS_PROVISION_PROFILE" | base64 --decode > macos_provision_profile.mobileprovision
-
-      - name: Create and manage custom keychain
-        if: matrix.os == 'macos-latest'
-        env:
-           MY_KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          echo "Creating custom keychain"
-          security create-keychain -p $MY_KEYCHAIN_PASSWORD build.keychain
-
-          echo "Importing signing certificate"
-          security import macos_signing_cert.p12 -k build.keychain -P $APPLE_CERTIFICATE_PASSWORD -T /usr/bin/codesign
-
-          echo "Unlocking keychain"
-          security unlock-keychain -p $MY_KEYCHAIN_PASSWORD build.keychain
-
-          echo "Setting key partition list"
-          security set-key-partition-list -S apple-tool:,apple: -s -k $MY_KEYCHAIN_PASSWORD build.keychain
-
-      - name: Use the custom keychain for signing
-        if: matrix.os == 'macos-latest'
-        run: |
-          # Print current directory contents
-          pwd
-          ls -la
       
-          # Find the .app directory
-          find . -name "*.app" -type d
-      
-          # Locate the actual path of the .app bundle
-          APP_PATH=$(find . -name "OpenIPC_Config.app" -type d | head -n 1)
-          
-          if [ -z "$APP_PATH" ]; then
-            echo "Error: Could not find .app bundle"
-            exit 1
-          fi
-      
-          echo "Found .app bundle at: $APP_PATH"
-      
-          security list-keychains -d user -s build.keychain-db
-          security find-identity
-      
-          echo "Using custom keychain for codesign"
-          codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" "$APP_PATH"
-        shell: bash
   
       # - name: Verify the signature
       #   if: matrix.os == 'macos-latest'
