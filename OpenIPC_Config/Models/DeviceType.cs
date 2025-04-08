@@ -30,7 +30,7 @@ public static class DevicesFriendlyNames
             {"openipc", "OpenIPC"},
             {"emax", "EMax"},
             {"runcam", "RunCam"},
-            {"caddx", "Caddex"}
+            {"caddx", "Caddx"}
         };
         mappingsDevices =  new Dictionary<string, string>(){
             {"mario-aio", "OpenIPC Mario AIO"},
