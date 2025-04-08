@@ -57,6 +57,26 @@ jobs:
           echo "Disk space after cleanup:"
           df -h      
 
+      # Free disk space on MacOS runners
+      - name: Free Disk Space (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          
+          # Remove unnecessary files
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /opt/CodeQL
+          
+          # Clean Homebrew cache
+          brew cleanup
+          brew autoremove
+          
+          echo "Disk space after cleanup:"
+          df -h
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -118,44 +138,6 @@ jobs:
           #   dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r linux-arm64 --self-contained -p:PublishSingleFile=true
           # fi
         shell: bash
-      
-      # Packaging macOS .app bundle
-      - name: Package macOS .app
-        if: matrix.os == 'macos-latest'
-        run: |
-          APP_NAME="OpenIPC_Config"
-          PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/osx-${{ matrix.arch }}/publish"
-          APP_DIR="${APP_NAME}.app"
-          
-          mkdir -p "${APP_DIR}/Contents/MacOS"
-          mkdir -p "${APP_DIR}/Contents/Resources"
-          cp -R "${PUBLISH_DIR}/"* "${APP_DIR}/Contents/MacOS/"
-          cp ./OpenIPC_Config/Assets/Icons/OpenIPC.icns "${APP_DIR}/Contents/Resources/${APP_NAME}.icns"
-
-          cat << EOF > "${APP_DIR}/Contents/Info.plist"
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>CFBundleName</key>
-            <string>${APP_NAME}</string>
-            <key>CFBundleExecutable</key>
-            <string>${APP_NAME}.Desktop</string>
-            <key>CFBundleIdentifier</key>
-            <string>com.openipc.${APP_NAME}</string>
-            <key>CFBundleVersion</key>
-            <string>${{ env.VERSION }}</string>
-            <key>CFBundlePackageType</key>
-            <string>APPL</string>
-            <key>LSMinimumSystemVersion</key>
-            <string>10.13</string>
-            <key>CFBundleIconFile</key>
-            <string>${APP_NAME}.icns</string>
-          </dict>
-          </plist>
-          EOF
-
-          chmod +x "${APP_DIR}/Contents/MacOS/${APP_NAME}.Desktop"
 
       - name: Decode signing certificate
         if: matrix.os == 'macos-latest'
@@ -183,50 +165,145 @@ jobs:
           echo "Setting key partition list"
           security set-key-partition-list -S apple-tool:,apple: -s -k $MY_KEYCHAIN_PASSWORD build.keychain
 
-      - name: Use the custom keychain for signing
+        
+      - name: Package and Sign macOS Build
         if: matrix.os == 'macos-latest'
         run: |
+
+          echo "Disk space before package and sign:"
+          df -h
+
+          echo "Directory Structure Before:"
+          ls -al
+          
+          # Define paths
+          APP_NAME="OpenIPC_Config"
+          PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/osx-${{ matrix.arch }}/publish"
+          APP_DIR="${APP_NAME}.app"
+          DMG_NAME="OpenIPC-Config-macos-${{ matrix.arch }}.dmg"
+
+          # Aggressively clean unnecessary files
+          find "${PUBLISH_DIR}" -name "*.pdb" -delete
+          find "${PUBLISH_DIR}" -name "*.config" -delete
+          find "${PUBLISH_DIR}" -name "*.xml" -delete
+    
+          # Create .app bundle (existing code)
+          mkdir -p "${APP_DIR}/Contents/MacOS"
+          mkdir -p "${APP_DIR}/Contents/Resources"
+          cp -R "${PUBLISH_DIR}/"* "${APP_DIR}/Contents/MacOS/"
+          cp ./OpenIPC_Config/Assets/Icons/OpenIPC.icns "${APP_DIR}/Contents/Resources/${APP_NAME}.icns"
+      
+          # Create Info.plist (existing code)
+          cat << EOF > "${APP_DIR}/Contents/Info.plist"
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleName</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundleExecutable</key>
+            <string>${APP_NAME}.Desktop</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.openipc.${APP_NAME}</string>
+            <key>CFBundleVersion</key>
+            <string>${{ env.VERSION }}</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>10.13</string>
+            <key>CFBundleIconFile</key>
+            <string>${APP_NAME}.icns</string>
+          </dict>
+          </plist>
+          EOF
+      
+          chmod +x "${APP_DIR}/Contents/MacOS/${APP_NAME}.Desktop"
+      
+          # Sign the application
           security list-keychains -d user -s build.keychain-db
           security find-identity
+          codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" "${APP_DIR}"
+      
+          # Verify signature
+          codesign --verify --verbose=4 "${APP_DIR}"
+          spctl --assess --type execute --verbose "${APP_DIR}"
 
-          echo "Using custom keychain for codesign"
-          codesign --deep --force --verify --verbose --sign "Developer ID Application: Mike Carr (EQKLR945TW)" ./OpenIPC_Config.app
-  
-      - name: Verify the signature
-        if: matrix.os == 'macos-latest'
-        run: |
-          codesign --verify --verbose=4 ./OpenIPC_Config.app
-          spctl --assess --type execute --verbose ./OpenIPC_Config.app
+          
+          # Create DMG
+          mkdir dmg_build
+          cp -R "${APP_DIR}" dmg_build/
+          ln -s /Applications dmg_build/Applications
 
-      - name: Cleanup custom keychain
-        if: matrix.os == 'macos-latest'
-        run: |
-          echo "Cleaning up the custom keychain"
-          security delete-keychain build.keychain || true
-
+          # Before DMG creation
+          echo "Contents of dmg_build:"
+          ls -lR dmg_build
+          
+          echo "Total size of dmg_build:"
+          du -sh dmg_build
+          
+          # Detailed disk space check
+          df -h
+                
+          # Verbose DMG creation with size estimation
+          echo "Creating DMG..."
+          # hdiutil create -volname "OpenIPC Config" -srcfolder dmg_build -ov -format UDZO "${DMG_NAME}"
+          hdiutil create \
+            -volname "OpenIPC Config" \
+            -srcfolder dmg_build \
+            -ov \
+            -format UDZO \
+            -fs HFS+ \
+            -size 500m \
+            "${DMG_NAME}"
+      
+          # Cleanup 
+          rm -rf dmg_build
+        shell: bash
             
       # Linux Icon and Packaging
       - name: Set up Icon and .desktop file
         if: matrix.os == 'ubuntu-latest'
         run: |
           APP_NAME="OpenIPC-Config"
-          PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/linux-x64/publish"
-          ICON_PATH="${PUBLISH_DIR}/Assets/OpenIPC.png"
-          DESKTOP_FILE="${PUBLISH_DIR}/${APP_NAME}-App.desktop"
+          PUBLISH_DIR="./OpenIPC_Config.Desktop/bin/Release/net8.0/linux-${{ matrix.arch }}/publish"
           
-          # Ensure the icon is in the publish directory
-          cp ./OpenIPC_Config/Assets/Icons/OpenIPC.png "$ICON_PATH"
-
+          # Print publish directory contents for debugging
+          echo "Contents of publish directory:"
+          ls -la "$PUBLISH_DIR"
+          
+          # Find the actual executable
+          EXECUTABLE=$(find "$PUBLISH_DIR" -name "OpenIPC_Config.Desktop" -type f)
+          
+          if [ -z "$EXECUTABLE" ]; then
+            echo "Error: Could not find executable"
+            exit 1
+          fi
+          
+          # Create Assets directory if it doesn't exist
+          mkdir -p "${PUBLISH_DIR}/Assets"
+          
+          # Copy icon to the publish directory
+          cp ./OpenIPC_Config/Assets/Icons/OpenIPC.png "${PUBLISH_DIR}/Assets/OpenIPC.png"
+          
+          # Create .desktop file path
+          DESKTOP_FILE="${PUBLISH_DIR}/${APP_NAME}-App.desktop"
+          ICON_PATH="./Assets/OpenIPC.png"
+          
           # Create .desktop file
           cat << EOF > "$DESKTOP_FILE"
           [Desktop Entry]
           Name=OpenIPC Config
-          Exec=./OpenIPC-Config.Desktop
+          Exec=$(basename "$EXECUTABLE")
           Icon=$ICON_PATH
           Type=Application
           Terminal=false
           Categories=Utility;
           EOF
+          
+          # Ensure executable permissions
+          chmod +x "$EXECUTABLE"
+          chmod +x "$DESKTOP_FILE"
+        shell: bash
       
       # Windows Icon and Packaging
       - name: Set Windows Icon and Package
@@ -251,22 +328,25 @@ jobs:
         run: |
           echo "Runner OS: ${{ runner.os }}"
           if [[ "${{ runner.os }}" == "macOS" ]]; then
-            DMG_NAME="OpenIPC-Config-macos-${{ matrix.arch }}.dmg"
-            APP_NAME="OpenIPC_Config.app"
-            BUILD_DIR="OpenIPC-Config-macos-${{ matrix.arch }}-dmg-build"
+            # DMG_NAME="OpenIPC-Config-macos-${{ matrix.arch }}.dmg"
+            # APP_NAME="OpenIPC_Config.app"
+            # BUILD_DIR="OpenIPC-Config-macos-${{ matrix.arch }}-dmg-build"
             
-            # Create a temporary folder for the .dmg contents
-            mkdir -p "${BUILD_DIR}"
-            cp -R "${APP_NAME}" "${BUILD_DIR}/"
+            # # Create a temporary folder for the .dmg contents
+            # mkdir -p "${BUILD_DIR}"
+            # cp -R "${APP_NAME}" "${BUILD_DIR}/"
             
-            # Create an alias to the Applications folder
-            ln -s /Applications "${BUILD_DIR}/Applications"
+            # # Create an alias to the Applications folder
+            # ln -s /Applications "${BUILD_DIR}/Applications"
             
-            # Create the .dmg with the Applications alias
-            hdiutil create -volname "OpenIPC Config" -srcfolder "${BUILD_DIR}" -ov -format UDZO "${DMG_NAME}"
+            # # Create the .dmg with the Applications alias
+            # hdiutil create -volname "OpenIPC Config" -srcfolder "${BUILD_DIR}" -ov -format UDZO "${DMG_NAME}"
             
-            # Clean up the temporary build folder
-            rm -rf "${BUILD_DIR}"
+            # # Aggressive cleanup
+            # rm -rf "${BUILD_DIR}"
+            # rm -rf "${APP_NAME}"
+            df -h  # Check disk space
+            
           elif [[ "${{ runner.os }}" == "Linux" ]]; then
 
             mkdir -p OpenIPC-Config-linux-${{ matrix.arch }}
@@ -285,6 +365,7 @@ jobs:
         with:
           name: OpenIPC-Config-macos-${{ matrix.arch }}.dmg
           path: OpenIPC-Config-macos-${{ matrix.arch }}.dmg
+          compression-level: 9
 
       - name: Upload Windows Artifact
         if: matrix.os == 'windows-latest'
@@ -292,6 +373,7 @@ jobs:
         with:
           name: OpenIPC-Config-windows-${{ matrix.arch }}
           path: OpenIPC-Config-windows-${{ matrix.arch }}.zip
+          compression-level: 9
 
       - name: Upload Ubuntu Artifact
         if: matrix.os == 'ubuntu-latest'
@@ -299,6 +381,7 @@ jobs:
         with:
           name: OpenIPC-Config-linux-${{ matrix.arch }}
           path: OpenIPC-Config-linux-${{ matrix.arch }}.zip
+          compression-level: 9
 
   release:
     runs-on: ubuntu-latest
