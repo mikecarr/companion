@@ -51,7 +51,7 @@ public class FirmwareTabViewModelTests
                         Name = "TestManufacturer",
                         Devices = new ObservableCollection<Device>
                         {
-                            new Device { Name = "TestDevice" }
+                            new Device { FriendlyName = "TestDevice" }
                         }
                     }
                 }
