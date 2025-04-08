@@ -231,7 +231,7 @@ public partial class FirmwareTabViewModel : ViewModelBase
                             firmware.Contains("fpv") || firmware.Contains("rubyfpv")));
 
                     if (hasValidFirmwareType)
-                        Manufacturers.Add(manufacturer.Name);
+                        Manufacturers.Add(manufacturer.FriendlyName);
                 }
 
                 if (!Manufacturers.Any())
@@ -258,6 +258,8 @@ public partial class FirmwareTabViewModel : ViewModelBase
             return;
         }
 
+        manufacturer = DevicesFriendlyNames.ManufacturerByFriendlyName(manufacturer);
+
         var manufacturerData = _firmwareData?.Manufacturers
             .FirstOrDefault(m => m.Name == manufacturer);
 
@@ -268,7 +270,7 @@ public partial class FirmwareTabViewModel : ViewModelBase
         }
 
         foreach (var device in manufacturerData.Devices)
-            Devices.Add(device.Name);
+            Devices.Add(device.FriendlyName);
 
         Logger.Information($"Loaded {Devices.Count} devices for manufacturer: {manufacturer}");
     }
@@ -284,8 +286,10 @@ public partial class FirmwareTabViewModel : ViewModelBase
             return;
         }
 
+        device = DevicesFriendlyNames.DeviceByFriendlyName(device);
+       
         var deviceData = _firmwareData?.Manufacturers
-            .FirstOrDefault(m => m.Name == SelectedManufacturer)?.Devices
+            .FirstOrDefault(m => ((m.Name == SelectedManufacturer)||(m.FriendlyName == SelectedManufacturer)))?.Devices
             .FirstOrDefault(d => d.Name == device);
 
         if (deviceData == null || !deviceData.Firmware.Any())
@@ -481,8 +485,11 @@ public partial class FirmwareTabViewModel : ViewModelBase
         var manufacturer = new Manufacturer
         {
             Name = manufacturerName,
+            FriendlyName = manufacturerName,
             Devices = new ObservableCollection<Device>()
         };
+        if ( DevicesFriendlyNames.mappingsManufacturers.ContainsKey(manufacturerName) )
+            manufacturer.FriendlyName = DevicesFriendlyNames.mappingsManufacturers[manufacturerName];
         firmwareData.Manufacturers.Add(manufacturer);
         return manufacturer;
     }
@@ -492,8 +499,11 @@ public partial class FirmwareTabViewModel : ViewModelBase
         var device = new Device
         {
             Name = deviceName,
+            FriendlyName = deviceName,
             Firmware = new ObservableCollection<string>()
         };
+        if ( DevicesFriendlyNames.mappingsDevices.ContainsKey(deviceName) )
+            device.FriendlyName = DevicesFriendlyNames.mappingsDevices[deviceName];
         manufacturer.Devices.Add(device);
         return device;
     }
@@ -757,10 +767,10 @@ public partial class FirmwareTabViewModel : ViewModelBase
             Logger.Information("Performing firmware upgrade using selected dropdown options.");
 
             var manufacturer = _firmwareData?.Manufacturers
-                .FirstOrDefault(m => m.Name == SelectedManufacturer);
+                .FirstOrDefault(m => ((m.Name == SelectedManufacturer) || (m.FriendlyName == SelectedManufacturer)));
 
             var device = manufacturer?.Devices
-                .FirstOrDefault(d => d.Name == SelectedDevice);
+                .FirstOrDefault(d => ((d.Name == SelectedDevice) || (d.FriendlyName == SelectedDevice)));
 
             var firmwareIdentifier = device?.Firmware
                 .FirstOrDefault(f => f.StartsWith(SelectedFirmware));
@@ -778,7 +788,8 @@ public partial class FirmwareTabViewModel : ViewModelBase
                 var sensor = components[1];
                 var memoryType = components[2];
 
-                filename = $"{sensor}_{firmwareType}_{SelectedManufacturer}-{device.Name}-{memoryType}.tgz";
+                string manufacturerId = DevicesFriendlyNames.ManufacturerByFriendlyName(SelectedManufacturer);
+                filename = $"{sensor}_{firmwareType}_{manufacturerId}-{device.Name}-{memoryType}.tgz";
                 downloadUrl = $"https://github.com/OpenIPC/builder/releases/download/latest/{filename}";
             }
             
@@ -931,12 +942,14 @@ public class FirmwareData
 public class Manufacturer
 {
     public string Name { get; set; }
+    public string FriendlyName { get; set; }
     public ObservableCollection<Device> Devices { get; set; }
 }
 
 public class Device
 {
     public string Name { get; set; }
+    public string FriendlyName {get; set; }
     public ObservableCollection<string> Firmware { get; set; }
 }
 
