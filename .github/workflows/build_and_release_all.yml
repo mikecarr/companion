@@ -383,14 +383,14 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: OpenIPC-Config-windows-${{ matrix.arch }}
+          name: OpenIPC-Config-windows-${{ matrix.arch }}.zip
           path: OpenIPC-Config-windows-${{ matrix.arch }}.zip
 
       - name: Upload Ubuntu Artifact
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: OpenIPC-Config-linux-${{ matrix.arch }}
+          name: OpenIPC-Config-linux-${{ matrix.arch }}.zip
           path: OpenIPC-Config-linux-${{ matrix.arch }}.zip
           compression-level: 9
 
