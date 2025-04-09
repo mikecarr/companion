@@ -313,22 +313,21 @@ jobs:
         shell: pwsh
         run: |
           $PUBLISH_DIR = "./OpenIPC_Config.Desktop/bin/Release/net8.0/win-${{ matrix.arch }}/publish"
-          
           $ICON_PATH = "./OpenIPC_Config/Assets/Icons/OpenIPC.ico"
 
           # Install rcedit to modify the Windows executable icon
           choco install rcedit -y
           rcedit "$PUBLISH_DIR/OpenIPC_Config.Desktop.exe" --set-icon "$ICON_PATH"
 
-          # Create directory for clean packaging
-          $OUTPUT_DIR = "OpenIPC-Config-windows-${{ matrix.arch }}"
-          New-Item -ItemType Directory -Path $OUTPUT_DIR -Force
+          # # Create directory for clean packaging
+          # $OUTPUT_DIR = "OpenIPC-Config-windows-${{ matrix.arch }}"
+          # New-Item -ItemType Directory -Path $OUTPUT_DIR -Force
           
-          # Copy all files (preserving directory structure)
-          Copy-Item -Path "$PUBLISH_DIR\*" -Destination $OUTPUT_DIR -Recurse
+          # # Copy all files (preserving directory structure)
+          # Copy-Item -Path "$PUBLISH_DIR\*" -Destination $OUTPUT_DIR -Recurse
           
-          # Zip without compression to avoid corruption
-          Compress-Archive -Path $OUTPUT_DIR -DestinationPath "$OUTPUT_DIR.zip" -CompressionLevel Optimal
+          # # Zip without compression to avoid corruption
+          # Compress-Archive -Path $OUTPUT_DIR -DestinationPath "$OUTPUT_DIR.zip" -CompressionLevel Optimal
     
           # Zip the Windows build
           #Compress-Archive -Path "$PUBLISH_DIR\*" -DestinationPath "OpenIPC-Config-windows-${{ matrix.arch }}.zip"
@@ -383,8 +382,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: OpenIPC-Config-windows-${{ matrix.arch }}.zip
-          path: OpenIPC-Config-windows-${{ matrix.arch }}.zip
+          name: OpenIPC-Config-windows-${{ matrix.arch }}
+          path: ./OpenIPC_Config.Desktop/bin/Release/net8.0/win-${{ matrix.arch }}/publish/**
 
       - name: Upload Ubuntu Artifact
         if: matrix.os == 'ubuntu-latest'
@@ -400,34 +399,84 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        
       - name: Read Version from VERSION File
         id: get_version
         run: |
-          #VERSION=$(cat VERSION)
           VERSION=${GITHUB_REF#refs/tags/}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         shell: bash
-
-
+        
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: .
-
+          path: ./artifacts
+          
       - name: List Downloaded Files
-        run: ls -R .
-
+        run: ls -R ./artifacts
+        
+      - name: Prepare Release Assets
+        run: |
+          mkdir -p release_files
+          
+          # Process Windows artifacts
+          if [ -d "./artifacts/OpenIPC-Config-windows-x64" ]; then
+            echo "Packaging Windows x64 build..."
+            mkdir -p temp_win_x64
+            cp -R ./artifacts/OpenIPC-Config-windows-x64/* temp_win_x64/
+            (cd temp_win_x64 && zip -r ../../release_files/OpenIPC-Config-windows-x64.zip .)
+            rm -rf temp_win_x64
+          fi
+          
+          if [ -d "./artifacts/OpenIPC-Config-windows-arm64" ]; then
+            echo "Packaging Windows arm64 build..."
+            mkdir -p temp_win_arm64
+            cp -R ./artifacts/OpenIPC-Config-windows-arm64/* temp_win_arm64/
+            (cd temp_win_arm64 && zip -r ../../release_files/OpenIPC-Config-windows-arm64.zip .)
+            rm -rf temp_win_arm64
+          fi
+          
+          # Move macOS DMG files directly (they're already properly packaged)
+          if [ -d "./artifacts/OpenIPC-Config-macos-x64.dmg" ]; then
+            cp ./artifacts/OpenIPC-Config-macos-x64.dmg/OpenIPC-Config-macos-x64.dmg ./release_files/
+          fi
+          
+          if [ -d "./artifacts/OpenIPC-Config-macos-arm64.dmg" ]; then
+            cp ./artifacts/OpenIPC-Config-macos-arm64.dmg/OpenIPC-Config-macos-arm64.dmg ./release_files/
+          fi
+          
+          # Process Linux artifacts
+          if [ -d "./artifacts/OpenIPC-Config-linux-x64" ]; then
+            echo "Packaging Linux x64 build..."
+            mkdir -p temp_linux_x64
+            cp -R ./artifacts/OpenIPC-Config-linux-x64/* temp_linux_x64/
+            (cd temp_linux_x64 && zip -r ../../release_files/OpenIPC-Config-linux-x64.zip .)
+            rm -rf temp_linux_x64
+          fi
+          
+          if [ -d "./artifacts/OpenIPC-Config-linux-arm64" ]; then
+            echo "Packaging Linux arm64 build..."
+            mkdir -p temp_linux_arm64
+            cp -R ./artifacts/OpenIPC-Config-linux-arm64/* temp_linux_arm64/
+            (cd temp_linux_arm64 && zip -r ../../release_files/OpenIPC-Config-linux-arm64.zip .)
+            rm -rf temp_linux_arm64
+          fi
+          
+          # List what we've prepared
+          echo "Release files prepared:"
+          ls -la ./release_files
+        shell: bash
+        
       - name: Generate latest.json
         run: |
-          cat << EOF > latest.json
+          cat << EOF > ./release_files/latest.json
           {
           "version": "${{ env.VERSION }}",
           "release_notes": "This is a dynamically generated release note. Update as needed.",
           "download_url": "https://github.com/${{ github.repository }}/releases/"
           }
           EOF
-
+          
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
@@ -454,6 +503,4 @@ jobs:
                         
             ---
           files: |
-            ./OpenIPC-Config-*/OpenIPC-Config-*.zip
-            ./OpenIPC-Config-*/OpenIPC-Config-*.dmg
-            ./latest.json
+            ./release_files/*
