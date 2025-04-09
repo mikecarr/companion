@@ -424,7 +424,7 @@ jobs:
             echo "Packaging Windows x64 build..."
             mkdir -p temp_win_x64
             cp -R ./artifacts/OpenIPC-Config-windows-x64/* temp_win_x64/
-            (cd temp_win_x64 && zip -r ../../release_files/OpenIPC-Config-windows-x64.zip .)
+            (cd temp_win_x64 && zip -r ../release_files/OpenIPC-Config-windows-x64.zip .)
             rm -rf temp_win_x64
           fi
           
@@ -432,34 +432,26 @@ jobs:
             echo "Packaging Windows arm64 build..."
             mkdir -p temp_win_arm64
             cp -R ./artifacts/OpenIPC-Config-windows-arm64/* temp_win_arm64/
-            (cd temp_win_arm64 && zip -r ../../release_files/OpenIPC-Config-windows-arm64.zip .)
+            (cd temp_win_arm64 && zip -r ../release_files/OpenIPC-Config-windows-arm64.zip .)
             rm -rf temp_win_arm64
           fi
           
-          # Move macOS DMG files directly (they're already properly packaged)
-          if [ -d "./artifacts/OpenIPC-Config-macos-x64.dmg" ]; then
+          # Fix for Linux artifacts (which are already zipped)
+          if [ -f "./artifacts/OpenIPC-Config-linux-x64.zip/OpenIPC-Config-linux-x64.zip" ]; then
+            cp ./artifacts/OpenIPC-Config-linux-x64.zip/OpenIPC-Config-linux-x64.zip ./release_files/
+          fi
+          
+          if [ -f "./artifacts/OpenIPC-Config-linux-arm64.zip/OpenIPC-Config-linux-arm64.zip" ]; then
+            cp ./artifacts/OpenIPC-Config-linux-arm64.zip/OpenIPC-Config-linux-arm64.zip ./release_files/
+          fi
+          
+          # Fix for macOS DMG files
+          if [ -f "./artifacts/OpenIPC-Config-macos-x64.dmg/OpenIPC-Config-macos-x64.dmg" ]; then
             cp ./artifacts/OpenIPC-Config-macos-x64.dmg/OpenIPC-Config-macos-x64.dmg ./release_files/
           fi
           
-          if [ -d "./artifacts/OpenIPC-Config-macos-arm64.dmg" ]; then
+          if [ -f "./artifacts/OpenIPC-Config-macos-arm64.dmg/OpenIPC-Config-macos-arm64.dmg" ]; then
             cp ./artifacts/OpenIPC-Config-macos-arm64.dmg/OpenIPC-Config-macos-arm64.dmg ./release_files/
-          fi
-          
-          # Process Linux artifacts
-          if [ -d "./artifacts/OpenIPC-Config-linux-x64" ]; then
-            echo "Packaging Linux x64 build..."
-            mkdir -p temp_linux_x64
-            cp -R ./artifacts/OpenIPC-Config-linux-x64/* temp_linux_x64/
-            (cd temp_linux_x64 && zip -r ../../release_files/OpenIPC-Config-linux-x64.zip .)
-            rm -rf temp_linux_x64
-          fi
-          
-          if [ -d "./artifacts/OpenIPC-Config-linux-arm64" ]; then
-            echo "Packaging Linux arm64 build..."
-            mkdir -p temp_linux_arm64
-            cp -R ./artifacts/OpenIPC-Config-linux-arm64/* temp_linux_arm64/
-            (cd temp_linux_arm64 && zip -r ../../release_files/OpenIPC-Config-linux-arm64.zip .)
-            rm -rf temp_linux_arm64
           fi
           
           # List what we've prepared
