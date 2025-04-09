@@ -34,6 +34,9 @@ public partial class TelemetryTabViewModel : ViewModelBase
     public bool IsMobile => App.OSType == "Mobile";
     public bool IsEnabledForView => CanConnect && !IsMobile;
     
+    public bool IsWfbYamlEnabled => _globalSettingsService.IsWfbYamlEnabled;
+    public bool CanEnable40MhzAction => CanConnect && !IsWfbYamlEnabled;
+    
     // Computed property for selective disabling
 
     #endregion
@@ -276,6 +279,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
 
     private async void Enable40Mhz()
     {
+        // if using wfb.yaml system don't do this
         UpdateUIMessage("Enabling 40MHz...");
         await SshClientService.UploadFileAsync(DeviceConfig.Instance, OpenIPC.LocalWifiBroadcastBinFileLoc,
             OpenIPC.RemoteWifiBroadcastBinFileLoc);
@@ -290,40 +294,66 @@ public partial class TelemetryTabViewModel : ViewModelBase
     {
         Log.Debug("Remove MSPOSDExtra executed");
 
-        var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
+        if (IsWfbYamlEnabled)
+        {
+            
+        }
+        else
+        {
 
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,
-            $"sed -i 's/sleep 5/#sleep 5/' {remoteTelemetryFile}");
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
+            var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
 
-        _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,
+                $"sed -i 's/sleep 5/#sleep 5/' {remoteTelemetryFile}");
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
+
+            _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+        }
     }
 
     private async void AddMSPOSDCameraExtra()
     {
         Log.Debug("MSPOSDExtra executed");
+        if (IsWfbYamlEnabled)
+        {
+            Log.Debug("Wfb yaml");
+            
+        }
+        else
+        {
+            Log.Debug("Legacy Wfb");
+            var telemetryFile = Path.Join(OpenIPC.GetBinariesPath(), "clean", "telemetry_msposd_extra");
+            var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
 
-        var telemetryFile = Path.Join(OpenIPC.GetBinariesPath(), "clean", "telemetry_msposd_extra");
-        var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
+            await SshClientService.UploadFileAsync(DeviceConfig.Instance, telemetryFile, remoteTelemetryFile);
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, "chmod +x " + remoteTelemetryFile);
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
 
-        await SshClientService.UploadFileAsync(DeviceConfig.Instance, telemetryFile, remoteTelemetryFile);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, "chmod +x " + remoteTelemetryFile);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
 
-        _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+            _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+        }
+        
     }
 
     private async void AddMSPOSDGSExtra()
     {
         Log.Debug("MSPOSDExtra executed");
 
-        var telemetryFile = Path.Join(OpenIPC.GetBinariesPath(), "clean", "telemetry_msposd_gs");
-        var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
+        if (IsWfbYamlEnabled)
+        {
+            
+        }
+        else
+        {
+            Log.Debug("Legacy Wfb");
+            var telemetryFile = Path.Join(OpenIPC.GetBinariesPath(), "clean", "telemetry_msposd_gs");
+            var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
 
-        await SshClientService.UploadFileAsync(DeviceConfig.Instance, telemetryFile, remoteTelemetryFile);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
+            await SshClientService.UploadFileAsync(DeviceConfig.Instance, telemetryFile, remoteTelemetryFile);
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
 
-        _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+            _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+        }
     }
 
     private async void SaveAndRestartTelemetry()
