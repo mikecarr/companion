@@ -73,10 +73,10 @@ public partial class MainViewModel : ViewModelBase
         _globalSettingsService = globalSettingsService;
 
         Tabs = new ObservableCollection<TabItemViewModel> { };
+        
         // Subscribe to device type change events
         EventSubscriptionService.Subscribe<DeviceTypeChangeEvent, DeviceType>(
             OnDeviceTypeChangeEvent);
-
 
         ToggleTabsCommand = new RelayCommand(() => IsTabsCollapsed = !IsTabsCollapsed);
 
@@ -908,7 +908,8 @@ public partial class MainViewModel : ViewModelBase
     {
         _logger.Debug($"Device type changed to: {deviceTypeEvent}");
 
-        InitializeTabs(deviceTypeEvent);
+        Dispatcher.UIThread.InvokeAsync(() => InitializeTabs(deviceTypeEvent));
+        //InitializeTabs(deviceTypeEvent);
 
         // Update IsVRXEnabled based on the device type
         //IsVRXEnabled = deviceTypeEvent == DeviceType.Radxa || deviceTypeEvent == DeviceType.NVR;
