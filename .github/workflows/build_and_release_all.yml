@@ -389,9 +389,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
-          name: OpenIPC-Config-linux-${{ matrix.arch }}.zip
-          path: OpenIPC-Config-linux-${{ matrix.arch }}.zip
-          compression-level: 9
+          name: OpenIPC-Config-linux-${{ matrix.arch }}
+          path: OpenIPC-Config-linux-${{ matrix.arch }}/
+          compression-level: 0
 
   release:
     runs-on: ubuntu-latest
@@ -419,40 +419,18 @@ jobs:
         run: |
           mkdir -p release_files
           
-          # Process Windows artifacts
-          if [ -d "./artifacts/OpenIPC-Config-windows-x64" ]; then
-            echo "Packaging Windows x64 build..."
-            mkdir -p temp_win_x64
-            cp -R ./artifacts/OpenIPC-Config-windows-x64/* temp_win_x64/
-            (cd temp_win_x64 && zip -r ../release_files/OpenIPC-Config-windows-x64.zip .)
-            rm -rf temp_win_x64
-          fi
+          # Process all platform artifacts with proper paths
+          for platform in windows linux; do
+            for arch in x64 arm64; do
+              if [ -d "./artifacts/OpenIPC-Config-${platform}-${arch}" ]; then
+                echo "Packaging ${platform}-${arch} build..."
+                (cd "./artifacts/OpenIPC-Config-${platform}-${arch}" && zip -r "../../release_files/OpenIPC-Config-${platform}-${arch}.zip" .)
+              fi
+            done
+          done
           
-          if [ -d "./artifacts/OpenIPC-Config-windows-arm64" ]; then
-            echo "Packaging Windows arm64 build..."
-            mkdir -p temp_win_arm64
-            cp -R ./artifacts/OpenIPC-Config-windows-arm64/* temp_win_arm64/
-            (cd temp_win_arm64 && zip -r ../release_files/OpenIPC-Config-windows-arm64.zip .)
-            rm -rf temp_win_arm64
-          fi
-          
-          # Fix for Linux artifacts (which are already zipped)
-          if [ -f "./artifacts/OpenIPC-Config-linux-x64.zip/OpenIPC-Config-linux-x64.zip" ]; then
-            cp ./artifacts/OpenIPC-Config-linux-x64.zip/OpenIPC-Config-linux-x64.zip ./release_files/
-          fi
-          
-          if [ -f "./artifacts/OpenIPC-Config-linux-arm64.zip/OpenIPC-Config-linux-arm64.zip" ]; then
-            cp ./artifacts/OpenIPC-Config-linux-arm64.zip/OpenIPC-Config-linux-arm64.zip ./release_files/
-          fi
-          
-          # Fix for macOS DMG files
-          if [ -f "./artifacts/OpenIPC-Config-macos-x64.dmg/OpenIPC-Config-macos-x64.dmg" ]; then
-            cp ./artifacts/OpenIPC-Config-macos-x64.dmg/OpenIPC-Config-macos-x64.dmg ./release_files/
-          fi
-          
-          if [ -f "./artifacts/OpenIPC-Config-macos-arm64.dmg/OpenIPC-Config-macos-arm64.dmg" ]; then
-            cp ./artifacts/OpenIPC-Config-macos-arm64.dmg/OpenIPC-Config-macos-arm64.dmg ./release_files/
-          fi
+          # Simply copy the DMG files
+          find ./artifacts -name "*.dmg" -exec cp {} ./release_files/ \;
           
           # List what we've prepared
           echo "Release files prepared:"
