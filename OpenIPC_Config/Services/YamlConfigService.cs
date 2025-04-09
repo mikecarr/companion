@@ -12,7 +12,8 @@ public class YamlConfigService : IYamlConfigService
 
     public YamlConfigService(ILogger logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _logger = logger?.ForContext(GetType()) ?? 
+                  throw new ArgumentNullException(nameof(logger));
     }
 
     public void ParseYaml(string content, Dictionary<string, string> yamlConfig)

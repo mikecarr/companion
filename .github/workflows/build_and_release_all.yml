@@ -7,14 +7,14 @@ concurrency:
 permissions:
   contents: write
   actions: read
-      
+              
 on:
-  workflow_dispatch:  # Allows manual triggering from any branch
+  workflow_dispatch: # Allows manual triggering from any branch
     inputs:
-      branch:
+      target_branch:
         description: 'Branch to build'
-        required: false
-        default: ''
+        default: 'dev'
+        required: true        
   push:
     tags:
       - 'release-v*'       # Trigger for tags that start with 'v', e.g., v1.0.0, v2.1.3
@@ -79,6 +79,8 @@ jobs:
           df -h
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+            ref: ${{ github.ref_name }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
@@ -425,13 +427,21 @@ jobs:
           generate_release_notes: true
           body: |
             ## OpenIPC Multiplatform Configurator
-            
+  
             Thank you for using OpenIPC Configurator! This application helps you configure OpenIPC cameras for FPV use.
             
+            ### Choosing Your Download:
+            
+            *   **Windows (Most Users):** Download `OpenIPC-Config-windows-x64.zip`. Requires a 64-bit Windows system.
+            *   **macOS (Apple Silicon - M1/M2/M3+):** Download `OpenIPC-Config-macos-arm64.dmg`.
+            *   **macOS (Older Intel Macs):** If available, download `OpenIPC-Config-macos-x64.dmg`.
+            *   **Linux (Most Desktops/Laptops):** Download `OpenIPC-Config-linux-x64.zip`. Requires a 64-bit Linux distribution on standard PC hardware (Intel/AMD).
+            
             ### Installation Instructions:
-            - **Windows**: Extract the zip file and run the executable
-            - **macOS**: Mount the DMG file and drag the app to your Applications folder
-            - **Linux**: Download the zip file, open terminal, cd into folder, and run ./OpenIPC_Config.Desktop
+            
+            *   **Windows**: Extract the `.zip` file and run the executable (`.exe`) inside.
+            *   **macOS**: Mount the `.dmg` file (double-click) and drag the app icon to your Applications folder.
+            *   **Linux**: Extract the `.zip` file. Open a terminal, navigate (`cd`) into the extracted folder, and run `./OpenIPC_Config.Desktop` (you might need to make it executable first: `chmod +x ./OpenIPC_Config.Desktop`).
                         
             ---
           files: |

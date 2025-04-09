@@ -29,7 +29,7 @@ public partial class MainViewModel : ViewModelBase
     private DispatcherTimer _pingTimer;
     private readonly TimeSpan _pingInterval = TimeSpan.FromSeconds(1);
     private readonly TimeSpan _pingTimeout = TimeSpan.FromMilliseconds(500);
-
+    private readonly IMessageBoxService _messageBoxService;
     
     [ObservableProperty] private string _svgPath;
     private bool _isTabsCollapsed;
@@ -53,13 +53,14 @@ public partial class MainViewModel : ViewModelBase
         ISshClientService sshClientService,
         IEventSubscriptionService eventSubscriptionService,
         IServiceProvider serviceProvider,
-        IGlobalSettingsService globalSettingsService)
+        IGlobalSettingsService globalSettingsService,
+        IMessageBoxService messageBoxService)
         : base(logger, sshClientService, eventSubscriptionService)
     {
         
         _logger = logger?.ForContext(GetType()) ?? 
                  throw new ArgumentNullException(nameof(logger));
-        
+        _messageBoxService = messageBoxService;
         LoadSettings();
         
         // Initialize the ping service
@@ -124,6 +125,8 @@ public partial class MainViewModel : ViewModelBase
                 _serviceProvider.GetRequiredService<SetupTabViewModel>(), IsTabsCollapsed));
             Tabs.Add(new TabItemViewModel("Firmware", "avares://OpenIPC_Config/Assets/Icons/iconair_firmware_dark.svg",
                 _serviceProvider.GetRequiredService<FirmwareTabViewModel>(), IsTabsCollapsed));
+            Tabs.Add(new TabItemViewModel("Advanced", "avares://OpenIPC_Config/Assets/Icons/iconair_advanced_dark.svg",
+                _serviceProvider.GetRequiredService<AdvancedTabViewModel>(), IsTabsCollapsed));
         }
         else if (deviceType == DeviceType.Radxa)
         {
@@ -738,6 +741,9 @@ public partial class MainViewModel : ViewModelBase
             AppMessage>(new AppMessage { CanConnect = DeviceConfig.Instance.CanConnect, DeviceConfig = _deviceConfig });
 
         _logger.Information("Done reading files from device.");
+
+        _messageBoxService.ShowMessageBox("Read Device", "Done reading from device!");
+
     }
 
     private async Task GetAndComputeAirMd5Hash()

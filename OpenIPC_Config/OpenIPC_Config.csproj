@@ -93,6 +93,10 @@
             <DependentUpon>Resources.es.resx</DependentUpon>
         </Compile>
 
+        <Compile Update="ViewModels\StatusBarViewModel.cs">
+          <DependentUpon>PresetsTabViewModel.cs</DependentUpon>
+        </Compile>
+
         <!--        <Compile Update="Views\PreferencesTabView.axaml.cs">-->
         <!--          <DependentUpon>PreferencesTabView.axaml</DependentUpon>-->
         <!--        </Compile>-->
