@@ -182,7 +182,7 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
     partial void OnSelectedFpvEnabledChanged(string value)
     {
         Logger.Debug($"SelectedFpvEnabledChanged updated to {value}");
-        UpdateYamlConfig(Majestic.FpvEnabled, value);
+        UpdateYamlConfig(Majestic.FpvEnabled, value.ToLower());
     }
 
     partial void OnIsOnboardRecOnChanged(bool value)
