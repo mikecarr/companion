@@ -362,6 +362,7 @@ public class App : Application
         services.AddSingleton<WfbTabViewModel>();
         services.AddSingleton<FirmwareTabViewModel>();
         services.AddSingleton<PresetsTabViewModel>();
+        services.AddSingleton<AdvancedTabViewModel>();
     }
 
     private static void RegisterViews(IServiceCollection services)
@@ -380,6 +381,7 @@ public class App : Application
         services.AddTransient<FirmwareTabView>();
         services.AddTransient<WfbTabView>();
         services.AddTransient<PresetsTabView>();
+        services.AddTransient<AdvancedTabView>();
     }
 
     private JObject createDefaultAppSettings()

@@ -34,6 +34,9 @@ public partial class TelemetryTabViewModel : ViewModelBase
     public bool IsMobile => App.OSType == "Mobile";
     public bool IsEnabledForView => CanConnect && !IsMobile;
     
+    public bool IsWfbYamlEnabled => _globalSettingsService.IsWfbYamlEnabled;
+    public bool CanEnable40MhzAction => CanConnect && !IsWfbYamlEnabled;
+    
     // Computed property for selective disabling
 
     #endregion
@@ -50,10 +53,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
     [ObservableProperty] private string _selectedSerialPort;
     [ObservableProperty] private string _telemetryContent;
     
-    public bool IsAlinkDroneDisabled => !IsAlinkDroneEnabled;
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsAlinkDroneDisabled))]
-    private bool _isAlinkDroneEnabled;
+    
 
     
     
@@ -133,8 +133,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
     public ICommand RemoveMSPOSDExtraCommand { get; private set; }
     public ICommand SaveAndRestartTelemetryCommand { get; private set; }
     
-    // Command property for toggling alink_drone
-    public ICommand ToggleAlinkDroneCommand { get; set; }
+    
     
     #endregion
 
@@ -185,7 +184,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
         RemoveMSPOSDExtraCommand = new RelayCommand(RemoveMSPOSDExtra);
         SaveAndRestartTelemetryCommand = new RelayCommand(SaveAndRestartTelemetry);
         // Initialize the ToggleAlinkDroneCommand properly
-        ToggleAlinkDroneCommand = new RelayCommand(async () => await ToggleAlinkDrone());
+        
     }
 
     private void SubscribeToEvents()
@@ -198,8 +197,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
         EventSubscriptionService.Subscribe<WfbYamlContentUpdatedEvent, WfbYamlContentUpdatedMessage>(
             OnWfbYamlContentUpdated);
         
-        // Subscribe to alink drone status updates
-        EventSubscriptionService.Subscribe<AlinkDroneStatusEvent, bool>(status => IsAlinkDroneEnabled = status);
+        
     }
     #endregion
 
@@ -276,6 +274,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
 
     private async void Enable40Mhz()
     {
+        // if using wfb.yaml system don't do this
         UpdateUIMessage("Enabling 40MHz...");
         await SshClientService.UploadFileAsync(DeviceConfig.Instance, OpenIPC.LocalWifiBroadcastBinFileLoc,
             OpenIPC.RemoteWifiBroadcastBinFileLoc);
@@ -290,40 +289,66 @@ public partial class TelemetryTabViewModel : ViewModelBase
     {
         Log.Debug("Remove MSPOSDExtra executed");
 
-        var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
+        if (IsWfbYamlEnabled)
+        {
+            
+        }
+        else
+        {
 
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,
-            $"sed -i 's/sleep 5/#sleep 5/' {remoteTelemetryFile}");
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
+            var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
 
-        _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,
+                $"sed -i 's/sleep 5/#sleep 5/' {remoteTelemetryFile}");
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
+
+            _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+        }
     }
 
     private async void AddMSPOSDCameraExtra()
     {
         Log.Debug("MSPOSDExtra executed");
+        if (IsWfbYamlEnabled)
+        {
+            Log.Debug("Wfb yaml");
+            
+        }
+        else
+        {
+            Log.Debug("Legacy Wfb");
+            var telemetryFile = Path.Join(OpenIPC.GetBinariesPath(), "clean", "telemetry_msposd_extra");
+            var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
 
-        var telemetryFile = Path.Join(OpenIPC.GetBinariesPath(), "clean", "telemetry_msposd_extra");
-        var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
+            await SshClientService.UploadFileAsync(DeviceConfig.Instance, telemetryFile, remoteTelemetryFile);
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, "chmod +x " + remoteTelemetryFile);
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
 
-        await SshClientService.UploadFileAsync(DeviceConfig.Instance, telemetryFile, remoteTelemetryFile);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, "chmod +x " + remoteTelemetryFile);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
 
-        _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+            _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+        }
+        
     }
 
     private async void AddMSPOSDGSExtra()
     {
         Log.Debug("MSPOSDExtra executed");
 
-        var telemetryFile = Path.Join(OpenIPC.GetBinariesPath(), "clean", "telemetry_msposd_gs");
-        var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
+        if (IsWfbYamlEnabled)
+        {
+            
+        }
+        else
+        {
+            Log.Debug("Legacy Wfb");
+            var telemetryFile = Path.Join(OpenIPC.GetBinariesPath(), "clean", "telemetry_msposd_gs");
+            var remoteTelemetryFile = Path.Join(OpenIPC.RemoteBinariesFolder, "telemetry");
 
-        await SshClientService.UploadFileAsync(DeviceConfig.Instance, telemetryFile, remoteTelemetryFile);
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
+            await SshClientService.UploadFileAsync(DeviceConfig.Instance, telemetryFile, remoteTelemetryFile);
+            await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.DataLinkRestart);
 
-        _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+            _messageBoxService.ShowMessageBox("Done!", "Please wait for datalink to restart!");
+        }
     }
 
     private async void SaveAndRestartTelemetry()
@@ -624,81 +649,7 @@ public partial class TelemetryTabViewModel : ViewModelBase
             _yamlConfig.Remove(key);
     }
     
-    // Method to toggle the alink_drone status
-    private async Task ToggleAlinkDrone()
-    {
-        try
-        {
-            if (IsAlinkDroneEnabled)
-            {
-                // If enabled, disable it
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,DeviceCommands.RemoveAlinkDroneFromRcLocal);
-            }
-            else
-            {
-                // If disabled, enable it
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,DeviceCommands.AddAlinkDroneToRcLocal);
-            }
-        
-            // Refresh status after toggling
-            await CheckAlinkDroneStatus();
-        }
-        catch (Exception ex)
-        {
-            // Handle any errors
-            // You might want to log this or show a message to the user
-        }
-    }
     
-    private bool _isUpdatingAlinkDroneStatus = false;
-
-    partial void OnIsAlinkDroneEnabledChanged(bool value)
-    {
-        if (CanConnect && !_isUpdatingAlinkDroneStatus)
-        {
-            _ = ApplyAlinkDroneStatus(value);
-        }
-    }
-
-    // Method to check the current status
-
-    private async Task CheckAlinkDroneStatus()
-    {
-        if (CanConnect)
-        {
-            _isUpdatingAlinkDroneStatus = true;
-            try
-            {
-                var cts = new CancellationTokenSource(30000);
-                var cmdResult = await SshClientService.ExecuteCommandWithResponseAsync(DeviceConfig.Instance, DeviceCommands.IsAlinkDroneEnabled, cts.Token);
-                IsAlinkDroneEnabled = cmdResult.Result.Trim().Equals("true", StringComparison.OrdinalIgnoreCase);
-                cts.Dispose();
-            }
-            finally
-            {
-                _isUpdatingAlinkDroneStatus = false;
-            }
-        }
-    }
-
-    private async Task ApplyAlinkDroneStatus(bool enable)
-    {
-        try
-        {
-            if (enable)
-            {
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,DeviceCommands.AddAlinkDroneToRcLocal);
-            }
-            else
-            {
-                await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,DeviceCommands.RemoveAlinkDroneFromRcLocal);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.Error(ex, "Error setting Alink Drone status");
-        }
-    }
 
     
     

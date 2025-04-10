@@ -11,6 +11,10 @@ public class YamlConfigServiceTests
     public void SetUp()
     {
         _mockLogger = new Mock<ILogger>();
+        
+        // Mocking the ForContext method of the logger to return the mock logger itself
+        _mockLogger.Setup(x => x.ForContext(It.IsAny<Type>())).Returns(_mockLogger.Object);
+        
         _yamlConfigService = new YamlConfigService(_mockLogger.Object);
     }
 

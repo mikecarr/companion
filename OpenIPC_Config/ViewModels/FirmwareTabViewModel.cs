@@ -14,12 +14,16 @@ using Avalonia.Controls;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.VisualBasic;
 using Newtonsoft.Json.Linq;
 using OpenIPC_Config.Events;
 using OpenIPC_Config.Models;
 using OpenIPC_Config.Services;
+using Renci.SshNet.Messages;
 using Serilog;
 using SharpCompress.Archives;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using static OpenIPC_Config.ViewModels.FirmwareData;
 
 namespace OpenIPC_Config.ViewModels;
 
@@ -227,11 +231,11 @@ public partial class FirmwareTabViewModel : ViewModelBase
                 foreach (var manufacturer in data.Manufacturers)
                 {
                     var hasValidFirmwareType = manufacturer.Devices.Any(device =>
-                        device.Firmware.Any(firmware =>
-                            firmware.Contains("fpv") || firmware.Contains("rubyfpv")));
+                        device.FirmwarePackages.Any(firmware =>
+                            DevicesFriendlyNames.FirmwareIsSupported(firmware.Name)));
 
                     if (hasValidFirmwareType)
-                        Manufacturers.Add(manufacturer.Name);
+                        Manufacturers.Add(manufacturer.FriendlyName);
                 }
 
                 if (!Manufacturers.Any())
@@ -258,6 +262,8 @@ public partial class FirmwareTabViewModel : ViewModelBase
             return;
         }
 
+        manufacturer = DevicesFriendlyNames.ManufacturerByFriendlyName(manufacturer);
+
         var manufacturerData = _firmwareData?.Manufacturers
             .FirstOrDefault(m => m.Name == manufacturer);
 
@@ -268,7 +274,7 @@ public partial class FirmwareTabViewModel : ViewModelBase
         }
 
         foreach (var device in manufacturerData.Devices)
-            Devices.Add(device.Name);
+            Devices.Add(device.FriendlyName);
 
         Logger.Information($"Loaded {Devices.Count} devices for manufacturer: {manufacturer}");
     }
@@ -284,25 +290,23 @@ public partial class FirmwareTabViewModel : ViewModelBase
             return;
         }
 
+        device = DevicesFriendlyNames.DeviceByFriendlyName(device);
+       
         var deviceData = _firmwareData?.Manufacturers
-            .FirstOrDefault(m => m.Name == SelectedManufacturer)?.Devices
+            .FirstOrDefault(m => ((m.Name == SelectedManufacturer)||(m.FriendlyName == SelectedManufacturer)))?.Devices
             .FirstOrDefault(d => d.Name == device);
 
-        if (deviceData == null || !deviceData.Firmware.Any())
+        if (deviceData == null || !deviceData.FirmwarePackages.Any())
         {
             Logger.Warning($"No firmware found for device: {device}");
             return;
         }
 
-        foreach (var firmware in deviceData.Firmware)
+        foreach (var firmware in deviceData.FirmwarePackages)
         {
-            var components = firmware.Split('-');
-            if (components.Length > 0)
-            {
-                var firmwareType = components[0];
-                if (!Firmwares.Contains(firmwareType))
-                    Firmwares.Add(firmwareType);
-            }
+           var firmwareName = DevicesFriendlyNames.FirmwareFriendlyNameById(firmware.Name);
+           if (!Firmwares.Contains(firmwareName))
+                Firmwares.Add(firmwareName);
         }
 
         Logger.Information($"Loaded {Firmwares.Count} firmware types for device: {device}");
@@ -415,35 +419,100 @@ public partial class FirmwareTabViewModel : ViewModelBase
     {
         var firmwareData = new FirmwareData { Manufacturers = new ObservableCollection<Manufacturer>() };
 
+        // First, parse and add canonical firmware files;
+        // Second, parse add generic firmwares (as the can be added to multiple manufacturers as wildcards)
+
         foreach (var filename in filenames)
         {
-            ProcessFilenameByManufacturer(filename, firmwareData);
+            ProcessIndividualFirmwareFile(filename, firmwareData, true);
         }
 
+        foreach (var filename in filenames)
+        {
+            ProcessIndividualFirmwareFile(filename, firmwareData, false);
+        }
+
+        if (firmwareData.Manufacturers.Count > 0)
+        {
+            // Add OpenIPC generic SSC338 FPV firmware to the generic entry too
+            AddFirmwareData(firmwareData, "ssc338q_fpv_openipc-urllc-aio-nor.tgz", "*", "ssc338q", "urllc-aio", "ssc338q", "nor");
+
+            // Add OpenIPC Thinker built in WiFi firmware as it's not part of the canonical list
+            AddFirmwareData(firmwareData, "ssc338q_fpv_openipc-thinker-aio-nor.tgz", "openipc", "thinker-aio-wifi", "fpv", "ssc338q", "nor");
+            firmwareData.SortCollections();
+        }
         return firmwareData;
     }
     
-    private void ProcessFilenameByManufacturer(string filename, FirmwareData firmwareData)
+    private void ProcessIndividualFirmwareFile(string firmwarePackageFilename, FirmwareData firmwareData, bool bCanonicalFilesOnly)
     {
-        var match = Regex.Match(filename,
+        // A firmware file can be:
+        //  * For a particular SOC and a particular manufacturer
+        //  * For a particular SOC but any manufacturer
+        //  * For a particular SOC and a particular HW configuration (ie.Thinker Wifi)
+        // The common firmware filename convention is for first case above, with the filename format: SOC_firmwaretype_manufacturer-device-memorytype
+        // For the other cases, different filename conventions could be used (ie: for a firmware generic for all manufacturers: firmwaretype_SOC)
+        // Filenames must be canonized after a match is found
+
+
+        var match = Regex.Match(firmwarePackageFilename,
             @"^(?<sensor>[^_]+)_(?<firmwareType>[^_]+)_(?<manufacturer>[^-]+)-(?<device>.+?)-(?<memoryType>nand|nor)");
-        if (match.Success)
+        
+        if (firmwarePackageFilename.StartsWith("ssc338q_rubyfpv") && (!bCanonicalFilesOnly) )
         {
-            ProcessFirmwareMatch(match, firmwareData);
+            ProcessFirmwareMatchGenericRuby(firmwarePackageFilename, firmwareData);
+        }
+        else if (match.Success && (!firmwarePackageFilename.Contains("rubyfpv")) && bCanonicalFilesOnly )
+        {
+            ProcessFirmwareMatchForManufacturer(firmwarePackageFilename, match, firmwareData);
         }
         else
         {
-            Debug.WriteLine($"Filename '{filename}' does not match the expected pattern.");
+            Debug.WriteLine($"Filename '{firmwarePackageFilename}' does not match the expected pattern.");
         }
     }
 
-    
-    private void ProcessFirmwareMatch(Match match, FirmwareData firmwareData)
+    private void ProcessFirmwareMatchGenericRuby(string firmwarePackageFilename, FirmwareData firmwareData)
     {
-        var sensor = match.Groups["sensor"].Value;
+        string socType = "ssc338q";
+        string firmwareType = "rubyfpv";
+        string manufacturerName = "*";
+        string deviceName = "ssc338q";
+        string memoryType = "nor";
+
+        if (firmwarePackageFilename.Contains("thinker_internal") )
+        {
+            manufacturerName = "openipc";
+            deviceName = "thinker-aio-wifi";
+        }
+
+        if (DeviceConfig.Instance.ChipType != socType)
+            return; // using `return` to exit the method. continue is no longer relevant here
+
+        Debug.WriteLine(
+            $"Parsed file: SOCType={socType}, FirmwareType={firmwareType}, Manufacturer={manufacturerName}, Device={deviceName}, MemoryType={memoryType}");
+
+        AddFirmwareData(firmwareData, firmwarePackageFilename, manufacturerName, deviceName, firmwareType, socType, memoryType);
+
+        // Add this generic firmware to all supported manufacturers and devices, including generic OpenIPC device
+        if (manufacturerName.Equals("*"))
+        {
+            foreach (var manufacturer in firmwareData.Manufacturers)
+            {
+                foreach (var device in manufacturer.Devices)
+                {
+                    AddFirmwareData(firmwareData, firmwarePackageFilename, manufacturer.Name, device.Name, firmwareType, socType, memoryType);
+                }
+            }
+        }
+    }
+
+    private void ProcessFirmwareMatchForManufacturer(string firmwarePackageFilename, Match match, FirmwareData firmwareData)
+    {
+        var socType = match.Groups["sensor"].Value;
 
         // only show firmware that matches the selected sensor/soc
-        if (DeviceConfig.Instance.ChipType != sensor)
+        if (DeviceConfig.Instance.ChipType != socType)
             return; // using `return` to exit the method. continue is no longer relevant here
 
         var firmwareType = match.Groups["firmwareType"].Value;
@@ -452,13 +521,13 @@ public partial class FirmwareTabViewModel : ViewModelBase
         var memoryType = match.Groups["memoryType"].Value;
 
         Debug.WriteLine(
-            $"Parsed file: Sensor={sensor}, FirmwareType={firmwareType}, Manufacturer={manufacturerName}, Device={deviceName}, MemoryType={memoryType}");
+            $"Parsed file: SOCType={socType}, FirmwareType={firmwareType}, Manufacturer={manufacturerName}, Device={deviceName}, MemoryType={memoryType}");
 
-        AddFirmwareData(firmwareData, manufacturerName, deviceName, firmwareType, sensor, memoryType);
+        AddFirmwareData(firmwareData, firmwarePackageFilename, manufacturerName, deviceName, firmwareType, socType, memoryType);
     }
 
-    private void AddFirmwareData(FirmwareData firmwareData, string manufacturerName, string deviceName,
-        string firmwareType, string sensor, string memoryType)
+    private void AddFirmwareData(FirmwareData firmwareData, string firmwarePackageFilename, string manufacturerName, string deviceName,
+        string firmwareType, string socType, string memoryType)
     {
         var manufacturer = firmwareData.Manufacturers.FirstOrDefault(m => m.Name == manufacturerName);
         if (manufacturer == null)
@@ -467,13 +536,18 @@ public partial class FirmwareTabViewModel : ViewModelBase
         }
 
         var device = manufacturer.Devices.FirstOrDefault(d => d.Name == deviceName);
-        if (device == null)
+        if ( device == null )
         {
             device = CreateAndAddDevice(manufacturer, deviceName);
         }
 
-        var firmwareIdentifier = $"{firmwareType}-{sensor}-{memoryType}";
-        if (!device.Firmware.Contains(firmwareIdentifier)) device.Firmware.Add(firmwareIdentifier);
+
+        var firmwarePackage = device.FirmwarePackages.FirstOrDefault(f => f.PackageFile == firmwarePackageFilename);
+        if ( firmwarePackage == null )
+        {
+            firmwarePackage = CreateAndAddFirmwarePackage(manufacturer, device, firmwarePackageFilename, firmwareType);
+        }
+    
     }
     
     private Manufacturer CreateAndAddManufacturer(FirmwareData firmwareData, string manufacturerName)
@@ -481,6 +555,7 @@ public partial class FirmwareTabViewModel : ViewModelBase
         var manufacturer = new Manufacturer
         {
             Name = manufacturerName,
+            FriendlyName = DevicesFriendlyNames.ManufacturerFriendlyNameById(manufacturerName),
             Devices = new ObservableCollection<Device>()
         };
         firmwareData.Manufacturers.Add(manufacturer);
@@ -492,10 +567,24 @@ public partial class FirmwareTabViewModel : ViewModelBase
         var device = new Device
         {
             Name = deviceName,
-            Firmware = new ObservableCollection<string>()
+            FriendlyName = DevicesFriendlyNames.DeviceFriendlyNameById(deviceName),
+            FirmwarePackages = new ObservableCollection<FirmwarePackage>()
         };
         manufacturer.Devices.Add(device);
         return device;
+    }
+
+    private FirmwarePackage CreateAndAddFirmwarePackage(Manufacturer manufacturer, Device device, string firmwarePackageFilename, string firmwareType)
+    {
+        var firmwarePackage = new FirmwarePackage
+        {
+            Name = firmwareType,
+            FriendlyName = DevicesFriendlyNames.FirmwareFriendlyNameById(firmwareType),
+            PackageFile = firmwarePackageFilename
+        };
+        
+        device.FirmwarePackages.Add(firmwarePackage);
+        return firmwarePackage;
     }
 
     private async Task<string> DownloadFirmwareAsync(string url = null, string filename = null)
@@ -713,7 +802,7 @@ public partial class FirmwareTabViewModel : ViewModelBase
             var firmwwareFile = SelectedFirmwareBySoc;
             
             var downloadUrl = string.Empty;
-            var filename = String.Empty;
+            var filename = string.Empty;
             
             if (!string.IsNullOrEmpty(firmwwareFile))
             {
@@ -757,28 +846,23 @@ public partial class FirmwareTabViewModel : ViewModelBase
             Logger.Information("Performing firmware upgrade using selected dropdown options.");
 
             var manufacturer = _firmwareData?.Manufacturers
-                .FirstOrDefault(m => m.Name == SelectedManufacturer);
+                .FirstOrDefault(m => ((m.Name == SelectedManufacturer) || (m.FriendlyName == SelectedManufacturer)));
 
             var device = manufacturer?.Devices
-                .FirstOrDefault(d => d.Name == SelectedDevice);
+                .FirstOrDefault(d => ((d.Name == SelectedDevice) || (d.FriendlyName == SelectedDevice)));
 
-            var firmwareIdentifier = device?.Firmware
-                .FirstOrDefault(f => f.StartsWith(SelectedFirmware));
+            var firmware = device?.FirmwarePackages
+                .FirstOrDefault(f => ((f.Name == SelectedFirmware) || (f.FriendlyName == SelectedFirmware)));
 
             var downloadUrl = string.Empty;
-            var filename = String.Empty;
+            var filename = string.Empty;
             
 
             if (!string.IsNullOrEmpty(manufacturer?.Name) &&
                 !string.IsNullOrEmpty(device?.Name) &&
-                !string.IsNullOrEmpty(firmwareIdentifier))
+                !string.IsNullOrEmpty(firmware?.Name))
             {
-                var components = firmwareIdentifier.Split('-');
-                var firmwareType = components[0];
-                var sensor = components[1];
-                var memoryType = components[2];
-
-                filename = $"{sensor}_{firmwareType}_{SelectedManufacturer}-{device.Name}-{memoryType}.tgz";
+                filename = firmware.PackageFile;
                 downloadUrl = $"https://github.com/OpenIPC/builder/releases/download/latest/{filename}";
             }
             
@@ -922,22 +1006,79 @@ public partial class FirmwareTabViewModel : ViewModelBase
 
 #region Support Classes
 
+// Firmwares are organised as follow:
+// Manufacturers -> Devices -> Specific Firmware Package
+// Ex:
+//    Manufacturer A:
+//        Device 1:
+//             Firmware package a (ie. OpenIPC-FPV for SSC338Q);
+//             Firmware package b (ie. RubyFPV);
+//        Device 2:
+//             Firmware package a;
+//             Firmware package b;
+//             Firmware package c;
+//             Firmware package d;
+//        ...
+//    Manufacturer B:
+//        Device 1:
+//             Firmware package a;
+//        ...
+// To allow for:
+//    * generic firmwares that can either be used on multiple devices from same manufacturer,
+//      either can be used for multiple manufacturers,
+//    * generic manufacturers (ie. Aliexpress SSC338Q generic boards)
+//
+// a wildcard Manufacturer and a wildcard Device is present in the tree at each mode, where appropiate, denoted with id "*" and friendly name "Generic"
+//
 public class FirmwareData
 {
     public ObservableCollection<Manufacturer> Manufacturers { get; set; }
-    
+
+    public void SortCollections()
+    {
+        Manufacturers = new ObservableCollection<Manufacturer>(Manufacturers.OrderBy(p => p.FriendlyName));
+        var genericMan = Manufacturers.Single(p => p.Name.Equals("*"));
+        Manufacturers.Remove(Manufacturers.Where(p => p.Name.Equals("*")).Single());
+        Manufacturers.Insert(0, genericMan);
+        foreach (var manufacturer in Manufacturers)
+        {
+            manufacturer.SortCollections();
+        }
+    }
 }
 
 public class Manufacturer
 {
     public string Name { get; set; }
+    public string FriendlyName { get; set; }
     public ObservableCollection<Device> Devices { get; set; }
+
+    public void SortCollections()
+    {
+        Devices = new ObservableCollection<Device>(Devices.OrderBy(p => p.FriendlyName));
+        foreach (var device in Devices)
+        {
+            device.SortCollections();
+        }
+    }
 }
 
 public class Device
 {
     public string Name { get; set; }
-    public ObservableCollection<string> Firmware { get; set; }
+    public string FriendlyName { get; set; }
+    public ObservableCollection<FirmwarePackage> FirmwarePackages { get; set; }
+
+    public void SortCollections()
+    {
+        FirmwarePackages = new ObservableCollection<FirmwarePackage>(FirmwarePackages.OrderBy(p => p.FriendlyName));
+    }
 }
 
+public class FirmwarePackage
+{
+    public string Name { get; set; }
+    public string FriendlyName { get; set; }
+    public string PackageFile { get; set; }
+}
 #endregion

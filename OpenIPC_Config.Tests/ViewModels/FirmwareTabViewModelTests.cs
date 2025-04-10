@@ -51,7 +51,7 @@ public class FirmwareTabViewModelTests
                         Name = "TestManufacturer",
                         Devices = new ObservableCollection<Device>
                         {
-                            new Device { Name = "TestDevice" }
+                            new Device { FriendlyName = "TestDevice" }
                         }
                     }
                 }
@@ -83,7 +83,12 @@ public class FirmwareTabViewModelTests
                             new Device
                             {
                                 Name = "TestDevice",
-                                Firmware = new ObservableCollection<string> { "fpv-sensor-nand" }
+                                FriendlyName = "fpv-sensor-nand",
+                                FirmwarePackages = new ObservableCollection<FirmwarePackage> { new FirmwarePackage()
+                                {
+                                    FriendlyName = "fpv-sensor-nand",
+                                    Name = "fpv-sensor-nand" 
+                                } }
                             }
                         }
                     }
@@ -97,7 +102,7 @@ public class FirmwareTabViewModelTests
 
         // Assert
         Assert.That(_viewModel.Firmwares, Is.Not.Empty);
-        Assert.That(_viewModel.Firmwares, Does.Contain("fpv"));
+        Assert.That(_viewModel.Firmwares, Does.Contain("fpv-sensor-nand"));
     }
 
     

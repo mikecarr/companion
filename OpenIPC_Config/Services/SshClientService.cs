@@ -16,15 +16,20 @@ public class SshClientService : ISshClientService
 {
     private IEventSubscriptionService _eventSubscriptionService;
 
-    public SshClientService(IEventSubscriptionService eventSubscriptionService)
+    private readonly ILogger _logger;
+
+    public SshClientService(IEventSubscriptionService eventSubscriptionService, ILogger logger)
     {
+        _logger = logger?.ForContext(GetType()) ?? 
+                  throw new ArgumentNullException(nameof(logger));
+        
         _eventSubscriptionService = eventSubscriptionService;
     }
 
     public async Task<SshCommand> ExecuteCommandWithResponseAsync(DeviceConfig deviceConfig, string command,
         CancellationToken cancellationToken = default)
     {
-        Log.Debug($"Executing command: '{command}' on {deviceConfig.IpAddress}.");
+        _logger.Debug($"Executing command: '{command}' on {deviceConfig.IpAddress}.");
 
         var connectionInfo = new ConnectionInfo(deviceConfig.IpAddress, deviceConfig.Port, deviceConfig.Username,
             new PasswordAuthenticationMethod(deviceConfig.Username, deviceConfig.Password));
@@ -36,12 +41,12 @@ public class SshClientService : ISshClientService
                 await client.ConnectAsync(cancellationToken);
                 //client.Connect();
                 var result = client.RunCommand(command);
-                Log.Debug($"Command executed successfully. Result: {result.Result}, Exit code: {result.ExitStatus}");
+                _logger.Debug($"Command executed successfully. Result: {result.Result}, Exit code: {result.ExitStatus}");
                 return result;
             }
             catch (Exception ex)
             {
-                Log.Debug($"Error executing command: {ex.Message}");
+                _logger.Debug($"Error executing command: {ex.Message}");
                 return null;
             }
             finally
@@ -53,7 +58,7 @@ public class SshClientService : ISshClientService
 
     public async Task ExecuteCommandAsync(DeviceConfig deviceConfig, string command)
     {
-        Log.Debug($"Executing command: '{command}' on {deviceConfig.IpAddress}.");
+        _logger.Debug($"Executing command: '{command}' on {deviceConfig.IpAddress}.");
 
         var connectionInfo = new ConnectionInfo(deviceConfig.IpAddress, deviceConfig.Port, deviceConfig.Username,
             new PasswordAuthenticationMethod(deviceConfig.Username, deviceConfig.Password));
@@ -63,12 +68,12 @@ public class SshClientService : ISshClientService
             {
                 client.Connect();
                 var result = client.RunCommand(command);
-                Log.Information(
+                _logger.Information(
                     $"Command executed successfully. Result: {result.Result}, Exit code: {result.ExitStatus}");
             }
             catch (Exception ex)
             {
-                Log.Error($"Error executing command: {ex.Message}");
+                _logger.Error($"Error executing command: {ex.Message}");
             }
             finally
             {
@@ -80,7 +85,7 @@ public class SshClientService : ISshClientService
 
     public async Task UploadFileAsync(DeviceConfig deviceConfig, string localFilePath, string remotePath)
     {
-        Log.Information($"Uploading file '{localFilePath}' to '{remotePath}' on {deviceConfig.IpAddress}.");
+        _logger.Information($"Uploading file '{localFilePath}' to '{remotePath}' on {deviceConfig.IpAddress}.");
 
         await Task.Run(() =>
         {
@@ -95,12 +100,12 @@ public class SshClientService : ISshClientService
                     using (var fileStream = new FileStream(localFilePath, FileMode.Open))
                     {
                         client.Upload(fileStream, remotePath);
-                        Log.Information("File uploaded successfully.");
+                        _logger.Information("File uploaded successfully.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"Error uploading file: {ex.Message}");
+                    _logger.Error($"Error uploading file: {ex.Message}");
                 }
                 finally
                 {
@@ -112,7 +117,7 @@ public class SshClientService : ISshClientService
 
     public void UploadFile(DeviceConfig deviceConfig, string localFilePath, string remotePath)
     {
-        Log.Information($"Uploading file '{localFilePath}' to '{remotePath}' on {deviceConfig.IpAddress}.");
+        _logger.Information($"Uploading file '{localFilePath}' to '{remotePath}' on {deviceConfig.IpAddress}.");
 
         var connectionInfo = new ConnectionInfo(deviceConfig.IpAddress, deviceConfig.Port, deviceConfig.Username,
             new PasswordAuthenticationMethod(deviceConfig.Username, deviceConfig.Password));
@@ -125,12 +130,12 @@ public class SshClientService : ISshClientService
                 using (var fileStream = new FileStream(localFilePath, FileMode.Open))
                 {
                     client.Upload(fileStream, remotePath);
-                    Log.Information("File uploaded successfully.");
+                    _logger.Information("File uploaded successfully.");
                 }
             }
             catch (Exception ex)
             {
-                Log.Information($"Error uploading file: {ex.Message}");
+                _logger.Information($"Error uploading file: {ex.Message}");
             }
             finally
             {
@@ -141,7 +146,7 @@ public class SshClientService : ISshClientService
 
     public async Task UploadDirectoryAsync(DeviceConfig deviceConfig, string localDirectory, string remoteDirectory)
     {
-        Log.Information($"Uploading directory '{localDirectory}' to '{remoteDirectory}' on {deviceConfig.IpAddress}.");
+        _logger.Information($"Uploading directory '{localDirectory}' to '{remoteDirectory}' on {deviceConfig.IpAddress}.");
 
         await Task.Run(() =>
         {
@@ -153,11 +158,11 @@ public class SshClientService : ISshClientService
                 {
                     client.Connect();
                     UploadDirectoryRecursively(client, localDirectory, remoteDirectory);
-                    Log.Information("Directory uploaded successfully.");
+                    _logger.Information("Directory uploaded successfully.");
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"Error uploading directory: {ex.Message}");
+                    _logger.Error($"Error uploading directory: {ex.Message}");
                 }
                 finally
                 {
@@ -169,7 +174,7 @@ public class SshClientService : ISshClientService
 
     public async Task DownloadDirectoryAsync(DeviceConfig deviceConfig, string remoteDirectory, string localDirectory)
     {
-        Log.Information(
+        _logger.Information(
             $"Downloading directory '{remoteDirectory}' to '{localDirectory}' on {deviceConfig.IpAddress}.");
 
         await Task.Run(() =>
@@ -182,11 +187,11 @@ public class SshClientService : ISshClientService
                 {
                     client.Connect();
                     DownloadDirectoryRecursively(client, remoteDirectory, localDirectory);
-                    Log.Information("Directory downloaded successfully.");
+                    _logger.Information("Directory downloaded successfully.");
                 }
                 catch (Exception ex)
                 {
-                    Log.Information($"Error downloading directory: {ex.Message}");
+                    _logger.Information($"Error downloading directory: {ex.Message}");
                 }
                 finally
                 {
@@ -198,7 +203,7 @@ public class SshClientService : ISshClientService
 
     public async Task<byte[]> DownloadFileBytesAsync(DeviceConfig deviceConfig, string remotePath)
     {
-        Log.Information($"Downloading file from '{remotePath}' on {deviceConfig.IpAddress}.");
+        _logger.Information($"Downloading file from '{remotePath}' on {deviceConfig.IpAddress}.");
 
         var fileContent = Array.Empty<byte>(); // Initialize an empty byte array
 
@@ -216,12 +221,12 @@ public class SshClientService : ISshClientService
                         // Download the file content into a MemoryStream using ScpClient
                         client.Download(remotePath, memoryStream);
                         fileContent = memoryStream.ToArray(); // Get the file content as a byte array
-                        Log.Information("File downloaded successfully.");
+                        _logger.Information("File downloaded successfully.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.Error($"Error downloading file: {ex.Message}");
+                    _logger.Error($"Error downloading file: {ex.Message}");
                 }
                 finally
                 {
@@ -242,7 +247,7 @@ public class SshClientService : ISshClientService
     /// <returns>The content of the file as a string.</returns>
     public async Task<string> DownloadFileAsync(DeviceConfig deviceConfig, string remotePath)
     {
-        Log.Information($"Downloading file from '{remotePath}' on {deviceConfig.IpAddress}.");
+        _logger.Information($"Downloading file from '{remotePath}' on {deviceConfig.IpAddress}.");
 
         var fileContent = string.Empty;
 
@@ -261,12 +266,12 @@ public class SshClientService : ISshClientService
                         client.Download(remotePath, memoryStream);
                         memoryStream.Seek(0, SeekOrigin.Begin); // Ensure the stream position is at the beginning
                         fileContent = Encoding.UTF8.GetString(memoryStream.ToArray());
-                        Log.Information("File downloaded successfully.");
+                        _logger.Information("File downloaded successfully.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Log.Information($"Error downloading file: {ex.Message}");
+                    _logger.Information($"Error downloading file: {ex.Message}");
                 }
                 finally
                 {
@@ -288,7 +293,7 @@ public class SshClientService : ISshClientService
         OpenIPC.FileType fileType, string fileName)
     {
         var binariesFolderPath = OpenIPC.GetBinariesPath();
-        Log.Debug($"Binaries folder path: {binariesFolderPath}");
+        _logger.Debug($"Binaries folder path: {binariesFolderPath}");
         var filePath = string.Empty;
         var remoteFilePath = string.Empty;
 
@@ -312,12 +317,12 @@ public class SshClientService : ISshClientService
                 break;
         }
 
-        Log.Debug($"file path: {filePath}");
+        _logger.Debug($"file path: {filePath}");
         if (File.Exists(filePath))
         {
-            Log.Information($"Uploading {fileName} to {remoteFilePath}...");
+            _logger.Information($"Uploading {fileName} to {remoteFilePath}...");
             await UploadFileAsync(deviceConfig, filePath, remoteFilePath);
-            Log.Information($"Uploaded {fileName} successfully.");
+            _logger.Information($"Uploaded {fileName} successfully.");
         }
         else
         {
@@ -336,13 +341,13 @@ public class SshClientService : ISshClientService
         }
         catch (Exception ex)
         {
-            Log.Information($"Error downloading file: {ex.Message}");
+            _logger.Information($"Error downloading file: {ex.Message}");
         }
     }
 
     public async Task UploadFileStringAsync(DeviceConfig deviceConfig, string remotePath, string fileContent)
     {
-        Log.Information($"Uploading content to '{remotePath}' on {deviceConfig.IpAddress}.");
+        _logger.Information($"Uploading content to '{remotePath}' on {deviceConfig.IpAddress}.");
 
         await Task.Run(() =>
         {
@@ -363,7 +368,7 @@ public class SshClientService : ISshClientService
 
                         // Upload the temporary file
                         client.Upload(new FileInfo(tempFilePath), remotePath);
-                        Log.Information("File uploaded successfully.");
+                        _logger.Information("File uploaded successfully.");
 
                         // Delete the temporary file
                         File.Delete(tempFilePath);
@@ -371,7 +376,7 @@ public class SshClientService : ISshClientService
                 }
                 catch (Exception ex)
                 {
-                    Log.Information($"Error uploading file: {ex.Message}");
+                    _logger.Information($"Error uploading file: {ex.Message}");
                 }
                 finally
                 {
@@ -485,7 +490,7 @@ public class SshClientService : ISshClientService
         foreach (var file in files)
         {
             var remoteFilePath = Path.Combine(remoteDirectory, Path.GetFileName(file)).Replace("\\", "/");
-            Log.Information($"Uploading file {file} to {remoteFilePath}");
+            _logger.Information($"Uploading file {file} to {remoteFilePath}");
             using (var fileStream = new FileStream(file, FileMode.Open))
             {
                 client.Upload(fileStream, remoteFilePath);
@@ -522,7 +527,7 @@ public class SshClientService : ISshClientService
                 {
                     var remoteFilePath = $"{remoteDirectory}/{file}";
                     var localFilePath = Path.Combine(localDirectory, file);
-                    Log.Information($"Downloading file {remoteFilePath} to {localFilePath}");
+                    _logger.Information($"Downloading file {remoteFilePath} to {localFilePath}");
 
                     using (var fileStream = new FileStream(localFilePath, FileMode.Create))
                     {

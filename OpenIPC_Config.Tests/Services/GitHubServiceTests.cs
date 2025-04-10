@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Moq.Protected;
 using OpenIPC_Config.Services;
+using Serilog;
 using Xunit;
 using Assert = NUnit.Framework.Assert;
 
@@ -16,13 +17,16 @@ public class GitHubServiceTests
     private readonly HttpClient _httpClient;
     private readonly IMemoryCache _memoryCache;
     private readonly GitHubService _gitHubService;
+    private readonly ILogger _logger;
+    
 
     public GitHubServiceTests()
     {
         _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
         _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
         _memoryCache = new MemoryCache(new MemoryCacheOptions());
-        _gitHubService = new GitHubService(_memoryCache, _httpClient);
+        _logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
+        _gitHubService = new GitHubService(_memoryCache, _httpClient, _logger);
     }
 
     [Fact]

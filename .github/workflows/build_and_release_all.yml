@@ -7,14 +7,14 @@ concurrency:
 permissions:
   contents: write
   actions: read
-      
+              
 on:
-  workflow_dispatch:  # Allows manual triggering from any branch
+  workflow_dispatch: # Allows manual triggering from any branch
     inputs:
-      branch:
+      target_branch:
         description: 'Branch to build'
-        required: false
-        default: ''
+        default: 'dev'
+        required: true        
   push:
     tags:
       - 'release-v*'       # Trigger for tags that start with 'v', e.g., v1.0.0, v2.1.3
@@ -79,6 +79,8 @@ jobs:
           df -h
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+            ref: ${{ github.ref_name }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
@@ -121,7 +123,7 @@ jobs:
         run: |
           # Only publish for the current matrix architecture
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-${{ matrix.arch }} --self-contained -p:PublishSingleFile=true
+            dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r win-${{ matrix.arch }} --self-contained -p:PublishSingleFile=false -p:PublishReadyToRun=true -p:IncludeNativeLibrariesForSelfExtract=true
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             dotnet publish OpenIPC_Config.Desktop/OpenIPC_Config.Desktop.csproj -c Release -r osx-${{ matrix.arch }} --self-contained -p:PublishSingleFile=true
           else
@@ -311,15 +313,24 @@ jobs:
         shell: pwsh
         run: |
           $PUBLISH_DIR = "./OpenIPC_Config.Desktop/bin/Release/net8.0/win-${{ matrix.arch }}/publish"
-          
           $ICON_PATH = "./OpenIPC_Config/Assets/Icons/OpenIPC.ico"
 
           # Install rcedit to modify the Windows executable icon
           choco install rcedit -y
           rcedit "$PUBLISH_DIR/OpenIPC_Config.Desktop.exe" --set-icon "$ICON_PATH"
 
+          # # Create directory for clean packaging
+          # $OUTPUT_DIR = "OpenIPC-Config-windows-${{ matrix.arch }}"
+          # New-Item -ItemType Directory -Path $OUTPUT_DIR -Force
+          
+          # # Copy all files (preserving directory structure)
+          # Copy-Item -Path "$PUBLISH_DIR\*" -Destination $OUTPUT_DIR -Recurse
+          
+          # # Zip without compression to avoid corruption
+          # Compress-Archive -Path $OUTPUT_DIR -DestinationPath "$OUTPUT_DIR.zip" -CompressionLevel Optimal
+    
           # Zip the Windows build
-          Compress-Archive -Path "$PUBLISH_DIR\*" -DestinationPath "OpenIPC-Config-windows-${{ matrix.arch }}.zip"
+          #Compress-Archive -Path "$PUBLISH_DIR\*" -DestinationPath "OpenIPC-Config-windows-${{ matrix.arch }}.zip"
         env:
           DOTNET_ROOT: C:\Program Files\dotnet
           VERSION: 0.0.1
@@ -372,16 +383,15 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: OpenIPC-Config-windows-${{ matrix.arch }}
-          path: OpenIPC-Config-windows-${{ matrix.arch }}.zip
-          compression-level: 9
+          path: ./OpenIPC_Config.Desktop/bin/Release/net8.0/win-${{ matrix.arch }}/publish/**
 
       - name: Upload Ubuntu Artifact
         if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: OpenIPC-Config-linux-${{ matrix.arch }}
-          path: OpenIPC-Config-linux-${{ matrix.arch }}.zip
-          compression-level: 9
+          path: OpenIPC-Config-linux-${{ matrix.arch }}/
+          compression-level: 0
 
   release:
     runs-on: ubuntu-latest
@@ -389,34 +399,54 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        
       - name: Read Version from VERSION File
         id: get_version
         run: |
-          #VERSION=$(cat VERSION)
           VERSION=${GITHUB_REF#refs/tags/}
           echo "VERSION=$VERSION" >> $GITHUB_ENV
         shell: bash
-
-
+        
       - name: Download All Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: .
-
+          path: ./artifacts
+          
       - name: List Downloaded Files
-        run: ls -R .
-
+        run: ls -R ./artifacts
+        
+      - name: Prepare Release Assets
+        run: |
+          mkdir -p release_files
+          
+          # Process all platform artifacts with proper paths
+          for platform in windows linux; do
+            for arch in x64 arm64; do
+              if [ -d "./artifacts/OpenIPC-Config-${platform}-${arch}" ]; then
+                echo "Packaging ${platform}-${arch} build..."
+                (cd "./artifacts/OpenIPC-Config-${platform}-${arch}" && zip -r "../../release_files/OpenIPC-Config-${platform}-${arch}.zip" .)
+              fi
+            done
+          done
+          
+          # Simply copy the DMG files
+          find ./artifacts -name "*.dmg" -exec cp {} ./release_files/ \;
+          
+          # List what we've prepared
+          echo "Release files prepared:"
+          ls -la ./release_files
+        shell: bash
+        
       - name: Generate latest.json
         run: |
-          cat << EOF > latest.json
+          cat << EOF > ./release_files/latest.json
           {
           "version": "${{ env.VERSION }}",
           "release_notes": "This is a dynamically generated release note. Update as needed.",
           "download_url": "https://github.com/${{ github.repository }}/releases/"
           }
           EOF
-
+          
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
@@ -425,16 +455,22 @@ jobs:
           generate_release_notes: true
           body: |
             ## OpenIPC Multiplatform Configurator
-            
+  
             Thank you for using OpenIPC Configurator! This application helps you configure OpenIPC cameras for FPV use.
             
+            ### Choosing Your Download:
+            
+            *   **Windows (Most Users):** Download `OpenIPC-Config-windows-x64.zip`. Requires a 64-bit Windows system.
+            *   **macOS (Apple Silicon - M1/M2/M3+):** Download `OpenIPC-Config-macos-arm64.dmg`.
+            *   **macOS (Older Intel Macs):** If available, download `OpenIPC-Config-macos-x64.dmg`.
+            *   **Linux (Most Desktops/Laptops):** Download `OpenIPC-Config-linux-x64.zip`. Requires a 64-bit Linux distribution on standard PC hardware (Intel/AMD).
+            
             ### Installation Instructions:
-            - **Windows**: Extract the zip file and run the executable
-            - **macOS**: Mount the DMG file and drag the app to your Applications folder
-            - **Linux**: Download the zip file, open terminal, cd into folder, and run ./OpenIPC_Config.Desktop
+            
+            *   **Windows**: Extract the `.zip` file and run the executable (`.exe`) inside.
+            *   **macOS**: Mount the `.dmg` file (double-click) and drag the app icon to your Applications folder.
+            *   **Linux**: Extract the `.zip` file. Open a terminal, navigate (`cd`) into the extracted folder, and run `./OpenIPC_Config.Desktop` (you might need to make it executable first: `chmod +x ./OpenIPC_Config.Desktop`).
                         
             ---
           files: |
-            ./OpenIPC-Config-*/OpenIPC-Config-*.zip
-            ./OpenIPC-Config-*/OpenIPC-Config-*.dmg
-            ./latest.json
+            ./release_files/*
