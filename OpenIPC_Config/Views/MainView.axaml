@@ -23,10 +23,9 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" /> <!-- Header -->
             <RowDefinition Height="*" />   <!-- Tab Content -->
-            <RowDefinition Height="Auto" /> <!-- Log Viewer -->
+            <RowDefinition Height="Auto" MinHeight="5" /> <!-- GridSplitter -->
+            <RowDefinition Height="60" MinHeight="60" /> <!-- Log Viewer with default height -->
         </Grid.RowDefinitions>
-        
-
         
         <!-- Header -->
         <views:HeaderView Grid.Row="0" Height="83" />
@@ -78,9 +77,6 @@
                 <StackPanel Orientation="Horizontal" 
                             Background="Transparent"
                              Spacing="0">
-                    <!-- <TextBlock Text="{Binding IsTabsCollapsed,  -->
-                    <!-- Converter={StaticResource InvertedBooleanConverter},  -->
-                    <!-- ConverterParameter='Show Tabs, Hide Tabs'}" /> -->
                     <Svg Path="/Assets/Icons/drawer-handle.svg"
                          Margin="0,0,0,0"  />
                     <Svg Path="{Binding SvgPath}"
@@ -98,8 +94,50 @@
                             Margin="0"/>
         </Grid>
         
+        <!-- GridSplitter -->
+        <GridSplitter Grid.Row="2"
+                      Background="#CCCCCC"
+                      ResizeDirection="Rows"
+                      ResizeBehavior="PreviousAndNext"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      Cursor="SizeNorthSouth" />
 
-        <!-- Log Viewer -->
-        <views:LogViewer Grid.Row="2" Margin="3,3,3,3" />
+        <!-- Log Viewer Section -->
+        <Grid Grid.Row="3" Background="LightGray">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="20" MinWidth="20" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            
+            <!-- Log Label and Explorer Link -->
+            <StackPanel Grid.Column="0" Margin="5,3,5,3" VerticalAlignment="Top" >
+                <!-- Vertical "LOG" text -->
+                <!-- <StackPanel Orientation="Vertical" Margin="0,0,0,10" HorizontalAlignment="Center"> -->
+                <!--     <TextBlock Text="L" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" /> -->
+                <!--     <TextBlock Text="O" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" /> -->
+                <!--     <TextBlock Text="G" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" /> -->
+                <!-- </StackPanel> -->
+    
+                <Button Command="{Binding OpenLogFolderCommand}" 
+                        Background="Transparent" 
+                        Padding="0"
+                        BorderThickness="0"
+                        ToolTip.Tip="Open log folder in system file explorer">
+                    <!-- <StackPanel Orientation="Horizontal" Spacing="5"> -->
+                    <!--     <Svg Path="/Assets/Icons/folder-open.svg" Width="16" Height="16" /> -->
+                    <!--     ~1~ <TextBlock Text="Open Folder" /> @1@ -->
+                    <!-- </StackPanel> -->
+                    <StackPanel Orientation="Vertical" Margin="0,0,0,10" HorizontalAlignment="Center">
+                    <TextBlock Text="L" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center"  Foreground="Black"/>
+                    <TextBlock Text="O" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" Foreground="Black"/>
+                    <TextBlock Text="G" FontWeight="Bold" FontSize="14" HorizontalAlignment="Center" Foreground="Black"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            
+            <!-- Log Viewer -->
+            <views:LogViewer Grid.Column="1" Margin="3,3,3,3" />
+        </Grid>
     </Grid>
 </UserControl>
