@@ -5,7 +5,7 @@
              xmlns:vm="clr-namespace:OpenIPC_Config.ViewModels"
              mc:Ignorable="d"
              d:DesignHeight="80"
-             Height="80"
+             
              x:Class="OpenIPC_Config.Views.LogViewer"
              x:DataType="vm:LogViewerViewModel">
 
