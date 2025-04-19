@@ -21,6 +21,7 @@ public class PresetService : IPresetService
     private readonly ISshClientService _sshClientService;
     private readonly IEventSubscriptionService _eventSubscriptionService;
     private readonly IYamlConfigService _yamlConfigService;
+    private readonly IGlobalSettingsService _globalSettingsService;
     private readonly Dictionary<string, string> _cachedFileContents = new();
 
     // Add a field to track the active preset being applied
@@ -36,6 +37,7 @@ public class PresetService : IPresetService
         "fstab",
         "network/interfaces",
         "hostname",
+        "alink.conf"
         // Add any other critical system files here
     };
 
@@ -46,7 +48,8 @@ public class PresetService : IPresetService
         ILogger logger,
         ISshClientService sshClientService,
         IEventSubscriptionService eventSubscriptionService,
-        IYamlConfigService yamlConfigService)
+        IYamlConfigService yamlConfigService,
+        IGlobalSettingsService globalSettingsService)
     {
         _logger = logger?.ForContext(GetType()) ?? 
                  throw new ArgumentNullException(nameof(logger));
@@ -54,6 +57,7 @@ public class PresetService : IPresetService
         _eventSubscriptionService = eventSubscriptionService ??
                                     throw new ArgumentNullException(nameof(eventSubscriptionService));
         _yamlConfigService = yamlConfigService ?? throw new ArgumentNullException(nameof(yamlConfigService));
+        _globalSettingsService = globalSettingsService;
     }
 
     /// <inheritdoc />
@@ -125,9 +129,13 @@ public class PresetService : IPresetService
                 string filePath;
                 string fileContent;
                 var changes = fileModification.Changes;
+                bool wfbYamlEnabled = _globalSettingsService.IsWfbYamlEnabled;
 
                 _logger.Information($"Applying changes to file: {fileName}");
 
+                if ((wfbYamlEnabled && fileName == "wfb.conf") || (wfbYamlEnabled && fileName == "telemetry.conf"))
+                    return true;
+                
                 // Special handling for known binary/special files that should be copied directly
                 if (ShouldCopyFileDirectly(fileName))
                 {
@@ -420,12 +428,19 @@ public class PresetService : IPresetService
     {
         try
         {
+            bool wfbYamlEnabled = _globalSettingsService.IsWfbYamlEnabled;
             switch (fileName.ToLower())
             {
                 case "wfb.conf":
+                    if (wfbYamlEnabled)
+                        return "";
+                    
                     return ApplyChangesToWfbConf(fileContent, changes);
 
                 case "telemetry.conf":
+                    if (wfbYamlEnabled)
+                        return "";
+                    
                     return ApplyChangesToWfbConf(fileContent, changes);
 
                 case "wfb.yaml":

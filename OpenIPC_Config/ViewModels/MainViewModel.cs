@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Threading;
@@ -85,6 +86,8 @@ public partial class MainViewModel : ViewModelBase
         ConnectCommand = new RelayCommand(() => Connect());
 
         DeviceTypes = new ObservableCollection<DeviceType>(Enum.GetValues(typeof(DeviceType)).Cast<DeviceType>());
+        
+        OpenLogFolderCommand = new RelayCommand(() => OpenLogFolder());
 
         // Initialize the path
         UpdateSvgPath();
@@ -158,6 +161,8 @@ public partial class MainViewModel : ViewModelBase
 
     public ICommand ConnectCommand { get; private set; }
     public ICommand ToggleTabsCommand { get; }
+    
+    public ICommand OpenLogFolderCommand { get; }
 
     public WfbTabViewModel WfbTabViewModel { get; }
     public WfbGSTabViewModel WfbGSTabViewModel { get; }
@@ -904,6 +909,96 @@ public partial class MainViewModel : ViewModelBase
         EventSubscriptionService.Publish<DeviceTypeChangeEvent, DeviceType>(settings.DeviceType);
     }
 
+    private void OpenLogFolder()
+{
+    try
+    {
+        // Use AppData folder for Windows, or appropriate location for other platforms
+        string appDataFolder;
+        string appName = "OpenIPC_Config"; // Replace with your actual app name
+        string logPath;
+        
+        if (OperatingSystem.IsWindows())
+        {
+            appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            logPath = Path.Combine(appDataFolder, appName, "logs");
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            // On macOS, use Library/Application Support directly
+            // logPath = Path.Combine(
+            //     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            //     "Library", "Application Support", appName, "logs");
+            appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            logPath = Path.Combine(appDataFolder, appName, "logs");
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            appDataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+            logPath = Path.Combine(appDataFolder, appName, "logs");
+        }
+        else
+        {
+            // Fallback to app directory if platform is unknown
+            logPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
+        }
+        
+        // Create directory if it doesn't exist
+        if (!Directory.Exists(logPath))
+        {
+            Directory.CreateDirectory(logPath);
+            Logger.Information($"Created log directory: {logPath}");
+        }
+        
+        // Log the path we're trying to open
+        Logger.Information($"Attempting to open log folder: {logPath}");
+        
+        // Open the folder in the system file explorer
+        if (OperatingSystem.IsWindows())
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = logPath,
+                UseShellExecute = true
+            });
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            var quotedPath = $"\"{logPath}\"";
+            // Use ProcessStartInfo for macOS to ensure proper argument handling
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "open",
+                Arguments = quotedPath,
+                UseShellExecute = true
+            });
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "xdg-open",
+                Arguments = logPath,
+                UseShellExecute = true
+            });
+        }
+        
+        // Log success
+        Logger.Information($"Successfully opened log folder: {logPath}");
+    }
+    catch (Exception ex)
+    {
+        Logger.Error($"Failed to open log folder: {ex.Message}");
+        
+        // Additional error details for troubleshooting
+        if (ex.InnerException != null)
+        {
+            Logger.Error($"Inner exception: {ex.InnerException.Message}");
+        }
+    }
+}
+    
     private void OnDeviceTypeChangeEvent(DeviceType deviceTypeEvent)
     {
         _logger.Debug($"Device type changed to: {deviceTypeEvent}");

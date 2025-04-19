@@ -54,5 +54,12 @@ public class PresetIndexEntry
     /// List of files modified by this preset
     /// </summary>
     [YamlMember(Alias = "files")]
-    public List<string> Files { get; set; } = new();
+    //public List<string> Files { get; set; } = new();
+    public Dictionary<string, Dictionary<string, string>> Files { get; set; } = new();
+    
+    /// <summary>
+    /// List of files modified by this preset
+    /// </summary>
+    [YamlMember(Alias = "additional_files")]
+    public List<string> AdditionalFiles { get; set; } = new();
 }

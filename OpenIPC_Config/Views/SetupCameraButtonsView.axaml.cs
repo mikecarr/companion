@@ -11,8 +11,8 @@ public partial class SetupCameraButtonsView : UserControl
         InitializeComponent();
         if (!Design.IsDesignMode) DataContext = App.ServiceProvider.GetService<SetupTabViewModel>();
 
-        ScriptFilesActionButton.IsEnabled = false;
-        CameraKeyActionButton.IsEnabled = false;
+        //ScriptFilesActionButton.IsEnabled = false;
+        //CameraKeyActionButton.IsEnabled = false;
     }
 
 
