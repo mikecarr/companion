@@ -5,11 +5,13 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.NetworkInformation;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -64,6 +66,15 @@ public partial class SetupTabViewModel : ViewModelBase
     [ObservableProperty] private string _selectedFwVersion;
     [ObservableProperty] private string _selectedScriptFileAction;
     [ObservableProperty] private string _selectedSensor;
+    [ObservableProperty] private ObservableCollectionExtended<string> _keyManagementActionItems;
+    [ObservableProperty] private string _selectedKeyManagementAction;
+    [ObservableProperty] private IBrush _keyValidationColor;
+    [ObservableProperty] private string _keyValidationMessage;
+
+    private string _localKeyPath;
+    private bool _isGeneratingKey;
+    
+    IMessageBoxService _messageBoxService;
     #endregion
 
     #region Commands
@@ -83,6 +94,8 @@ public partial class SetupTabViewModel : ViewModelBase
     private ICommand _sensorDriverUpdateCommand;
     private ICommand _sensorFilesBackupCommand;
     private ICommand _sensorFilesUpdateCommand;
+    public ICommand KeyManagementCommand => 
+        _keyManagementCommand ??= new AsyncRelayCommand(ExecuteKeyManagementActionAsync);
     #endregion
     
     // Command Properties
@@ -122,9 +135,13 @@ public partial class SetupTabViewModel : ViewModelBase
     public SetupTabViewModel(
         ILogger logger,
         ISshClientService sshClientService,
-        IEventSubscriptionService eventSubscriptionService)
+        IEventSubscriptionService eventSubscriptionService,
+        IMessageBoxService messageBoxService)
         : base(logger, sshClientService, eventSubscriptionService)
     {
+        _messageBoxService = messageBoxService;
+        ;
+        InitializeKeyManagement();
         InitializeCollections();
         InitializeProperties();
         SubscribeToEvents();
@@ -140,6 +157,31 @@ public partial class SetupTabViewModel : ViewModelBase
         ScanIpLabel = "192.168.1.";
     }
 
+    private void InitializeKeyManagement()
+    {
+        // Initialize key management properties
+        KeyManagementActionItems = new ObservableCollectionExtended<string>
+        {
+            "Generate New Key",
+            "Upload Key",
+            "Download Key from Device",
+            "Verify Key",
+            "Get Key Checksum"
+        };
+    
+        SelectedKeyManagementAction = KeyManagementActionItems[0];
+        KeyValidationColor = Brushes.Gray;
+        KeyValidationMessage = "No key validation performed";
+    
+        // Create key directories if they don't exist
+        Directory.CreateDirectory(Path.Combine(OpenIPC.AppDataConfigDirectory, "keys"));
+    
+        // Initialize local key path
+        _localKeyPath = Path.Combine(OpenIPC.AppDataConfigDirectory, "keys", "drone.key");
+    
+        Logger.Debug("Key management initialized");
+    }
+    
     private void InitializeCommands()
     {
         ShowProgressBarCommand = new RelayCommand(() => IsProgressBarVisible = true);
@@ -277,6 +319,541 @@ public partial class SetupTabViewModel : ViewModelBase
         Log.Debug("Backup script executed...done");
     }
 
+    // Key Management Methods to add to your SetupTabViewModel.cs file
+
+private ICommand _keyManagementCommand;
+
+private async Task ExecuteKeyManagementActionAsync()
+{
+    try
+    {
+        if (!CanConnect)
+        {
+            var msgBox = MessageBoxManager.GetMessageBoxStandard(
+                "Connection Required", 
+                "Please connect to a device before performing key management actions.",
+                ButtonEnum.Ok);
+            await msgBox.ShowAsync();
+            return;
+        }
+        
+        UpdateUIMessage($"Executing: {SelectedKeyManagementAction}");
+        
+        switch (SelectedKeyManagementAction)
+        {
+            case "Generate New Key":
+                await GenerateNewKeyAsync();
+                break;
+            case "Upload Key":
+                await UploadKeyAsync();
+                break;
+            case "Download Key from Device":
+                await DownloadKeyFromDeviceAsync();
+                break;
+            case "Verify Key":
+                await VerifyKeyAsync();
+                break;
+            case "Get Key Checksum":
+                await GetKeyChecksumAsync();
+                break;
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.Error(ex, "Error in key management");
+        UpdateUIMessage($"Error: {ex.Message}");
+        
+        var msgBox = MessageBoxManager.GetMessageBoxStandard(
+            "Error", 
+            $"An error occurred during key management: {ex.Message}",
+            ButtonEnum.Ok);
+        await msgBox.ShowAsync();
+    }
+}
+
+private async Task GenerateNewKeyAsync()
+{
+    try
+    {
+        _isGeneratingKey = true;
+        IsProgressBarVisible = true;
+        ProgressText = "Generating secure key...";
+        DownloadProgress = 0;
+        
+        // Create keys directory if it doesn't exist
+        var keysDir = Path.Combine(OpenIPC.AppDataConfigDirectory, "keys");
+        if (!Directory.Exists(keysDir))
+        {
+            Directory.CreateDirectory(keysDir);
+        }
+        
+        // Generate key file with timestamp
+        string keyFileName = $"drone_key_{DateTime.Now:yyyyMMdd_HHmmss}.key";
+        _localKeyPath = Path.Combine(keysDir, keyFileName);
+        
+        await Task.Run(() => 
+        {
+            // Generate a secure random key
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                byte[] keyData = new byte[32]; // 256-bit key
+                rng.GetBytes(keyData);
+                
+                // Save key to file
+                File.WriteAllBytes(_localKeyPath, keyData);
+                
+                // Create a copy as drone.key for compatibility
+                File.Copy(_localKeyPath, Path.Combine(keysDir, "drone.key"), true);
+            }
+        });
+        
+        DownloadProgress = 50;
+        ProgressText = "Key generated, calculating checksum...";
+        
+        // Calculate checksum
+        var keyData = await File.ReadAllBytesAsync(_localKeyPath);
+        var checksum = CalculateChecksum(keyData);
+        
+        DownloadProgress = 100;
+        ProgressText = "Key generation complete";
+        
+        // Update the UI
+        KeyChecksum = checksum;
+        ChkSumStatusColor = "Green";
+        KeyValidationColor = Brushes.Green;
+        KeyValidationMessage = "New key generated successfully";
+        
+        var msgBox = MessageBoxManager.GetMessageBoxStandard(
+            "Key Generated", 
+            $"New encryption key generated and saved to:\n{_localKeyPath}\n\nChecksum: {checksum}",
+            ButtonEnum.Ok);
+        await msgBox.ShowAsync();
+        
+        // Ask if user wants to upload the key to the device
+        var uploadMsg = MessageBoxManager.GetMessageBoxStandard(
+            "Upload Key", 
+            "Do you want to upload this key to the connected device?",
+            ButtonEnum.YesNo);
+        var result = await uploadMsg.ShowAsync();
+        
+        if (result == ButtonResult.Yes)
+        {
+            await UploadKeyAsync(_localKeyPath);
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.Error(ex, "Error generating key");
+        KeyValidationColor = Brushes.Red;
+        KeyValidationMessage = "Error generating key";
+        throw;
+    }
+    finally
+    {
+        _isGeneratingKey = false;
+        IsProgressBarVisible = false;
+    }
+}
+
+private async Task UploadKeyAsync(string specificKeyPath = null)
+{
+    try
+    {
+        IsProgressBarVisible = true;
+        ProgressText = "Preparing to upload key...";
+        DownloadProgress = 0;
+        
+        string keyPath = specificKeyPath;
+        
+        // If no specific key path was provided, ask the user to select a key file
+        if (string.IsNullOrEmpty(keyPath))
+        {
+            var openFileDialog = new Avalonia.Controls.OpenFileDialog
+            {
+                Title = "Select Key File",
+                Filters = new List<Avalonia.Controls.FileDialogFilter>
+                {
+                    new Avalonia.Controls.FileDialogFilter { Name = "Key Files", Extensions = new List<string> { "key" } }
+                },
+                Directory = Path.Combine(OpenIPC.AppDataConfigDirectory, "keys")
+            };
+            
+            var window = Avalonia.Application.Current.ApplicationLifetime as Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            var result = await openFileDialog.ShowAsync(window?.MainWindow);
+            
+            if (result == null || result.Length == 0)
+            {
+                IsProgressBarVisible = false;
+                return;
+            }
+            
+            keyPath = result[0];
+        }
+        
+        ProgressText = "Reading key file...";
+        DownloadProgress = 25;
+        
+        // Read the key file
+        byte[] keyData = await File.ReadAllBytesAsync(keyPath);
+        
+        // Get the checksum before uploading
+        string localChecksum = CalculateChecksum(keyData);
+        
+        ProgressText = "Uploading key to device...";
+        DownloadProgress = 50;
+        
+        // Upload the key to the device
+        await SshClientService.UploadFileAsync(DeviceConfig.Instance, keyPath, OpenIPC.RemoteDroneKeyPath);
+        
+        // Set proper permissions
+        ProgressText = "Setting key permissions...";
+        DownloadProgress = 75;
+        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, "chmod 600 /etc/drone.key");
+        
+        // Restart services if needed
+        ProgressText = "Restarting services...";
+        DownloadProgress = 90;
+        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, "systemctl restart drone-service || true");
+        
+        // Get the checksum from the device
+        ProgressText = "Verifying key upload...";
+        string remoteChecksum = await GetDeviceKeyChecksumAsync();
+        
+        DownloadProgress = 100;
+        ProgressText = "Key upload complete";
+        
+        // Verify the checksums match
+        if (localChecksum == remoteChecksum)
+        {
+            KeyChecksum = remoteChecksum;
+            ChkSumStatusColor = "Green";
+            KeyValidationColor = Brushes.Green;
+            KeyValidationMessage = "Key uploaded and verified successfully";
+            
+            // Update local drone.key if a different file was uploaded
+            if (keyPath != Path.Combine(OpenIPC.AppDataConfigDirectory, "keys", "drone.key"))
+            {
+                File.Copy(keyPath, Path.Combine(OpenIPC.AppDataConfigDirectory, "keys", "drone.key"), true);
+            }
+        }
+        else
+        {
+            KeyChecksum = $"Local: {localChecksum}, Device: {remoteChecksum}";
+            ChkSumStatusColor = "Red";
+            KeyValidationColor = Brushes.Red;
+            KeyValidationMessage = "Key upload failed verification";
+            
+            var msgBox = MessageBoxManager.GetMessageBoxStandard(
+                "Verification Failed", 
+                "The uploaded key could not be verified. Checksums do not match.",
+                ButtonEnum.Ok);
+            await msgBox.ShowAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.Error(ex, "Error uploading key");
+        KeyValidationColor = Brushes.Red;
+        KeyValidationMessage = "Error uploading key";
+        throw;
+    }
+    finally
+    {
+        IsProgressBarVisible = false;
+    }
+}
+
+private async Task DownloadKeyFromDeviceAsync()
+{
+    try
+    {
+        IsProgressBarVisible = true;
+        ProgressText = "Downloading key from device...";
+        DownloadProgress = 0;
+        
+        // Create keys directory if it doesn't exist
+        var keysDir = Path.Combine(OpenIPC.AppDataConfigDirectory, "keys");
+        if (!Directory.Exists(keysDir))
+        {
+            Directory.CreateDirectory(keysDir);
+        }
+        
+        // Check if drone.key already exists locally
+        var droneKeyPath = Path.Combine(keysDir, "drone.key");
+        if (File.Exists(droneKeyPath))
+        {
+            Logger.Debug("drone.key already exists locally, checking if user wants to overwrite");
+            var msgBox = MessageBoxManager.GetMessageBoxStandard(
+                "File Exists", 
+                "A drone.key file already exists locally. Do you want to overwrite it?",
+                ButtonEnum.YesNo);
+            
+            var result = await msgBox.ShowAsync();
+            if (result == ButtonResult.No)
+            {
+                Logger.Debug("User chose not to overwrite existing drone.key");
+                IsProgressBarVisible = false;
+                return;
+            }
+        }
+        
+        DownloadProgress = 25;
+        
+        // Create a timestamped version as well
+        string keyFileName = $"drone_key_from_device_{DateTime.Now:yyyyMMdd_HHmmss}.key";
+        string timestampedKeyPath = Path.Combine(keysDir, keyFileName);
+        
+        DownloadProgress = 50;
+        
+        // Download the key from the device
+        await SshClientService.DownloadFileLocalAsync(
+            DeviceConfig.Instance,
+            OpenIPC.RemoteDroneKeyPath,
+            droneKeyPath);
+        
+        DownloadProgress = 75;
+        
+        // Make a timestamped copy
+        if (File.Exists(droneKeyPath))
+        {
+            File.Copy(droneKeyPath, timestampedKeyPath, true);
+        }
+        
+        ProgressText = "Calculating key checksum...";
+        DownloadProgress = 90;
+        
+        // Calculate and display checksum
+        if (File.Exists(droneKeyPath))
+        {
+            var keyData = await File.ReadAllBytesAsync(droneKeyPath);
+            var checksum = CalculateChecksum(keyData);
+            
+            KeyChecksum = checksum;
+            ChkSumStatusColor = "Green";
+            KeyValidationColor = Brushes.Green;
+            KeyValidationMessage = "Key downloaded successfully";
+            
+            DownloadProgress = 100;
+            ProgressText = "Key download complete";
+            
+            await _messageBoxService.ShowMessageBoxWithFolderLink(
+                "Download Complete", 
+                $"Key downloaded successfully to:\n{droneKeyPath}\n\nChecksum: {checksum}",
+                droneKeyPath);
+            
+            // var msgBox = MessageBoxManager.GetMessageBoxStandard(
+            //     "Download Complete", 
+            //     $"Key downloaded successfully to:\n{droneKeyPath}\n\nChecksum: {checksum}",
+            //     ButtonEnum.Ok);
+            // await msgBox.ShowAsync();
+        }
+        else
+        {
+            KeyValidationColor = Brushes.Red;
+            KeyValidationMessage = "Key download failed";
+            
+            var msgBox = MessageBoxManager.GetMessageBoxStandard(
+                "Download Failed", 
+                "Failed to download key from device.",
+                ButtonEnum.Ok);
+            await msgBox.ShowAsync();
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.Error(ex, "Error downloading key");
+        KeyValidationColor = Brushes.Red;
+        KeyValidationMessage = "Error downloading key";
+        throw;
+    }
+    finally
+    {
+        IsProgressBarVisible = false;
+    }
+}
+
+private async Task VerifyKeyAsync()
+{
+    try
+    {
+        IsProgressBarVisible = true;
+        ProgressText = "Verifying key...";
+        DownloadProgress = 0;
+        
+        // Get the device key checksum
+        DownloadProgress = 30;
+        ProgressText = "Getting device key checksum...";
+        string deviceChecksum = await GetDeviceKeyChecksumAsync();
+        
+        if (string.IsNullOrEmpty(deviceChecksum))
+        {
+            KeyValidationColor = Brushes.Red;
+            KeyValidationMessage = "Could not get device key checksum";
+            return;
+        }
+        
+        DownloadProgress = 60;
+        ProgressText = "Comparing with local key...";
+        
+        // Check if we have a local key to compare with
+        var droneKeyPath = Path.Combine(OpenIPC.AppDataConfigDirectory, "keys", "drone.key");
+        if (File.Exists(droneKeyPath))
+        {
+            // Calculate local key checksum
+            var localKeyData = await File.ReadAllBytesAsync(droneKeyPath);
+            var localChecksum = CalculateChecksum(localKeyData);
+            
+            DownloadProgress = 100;
+            ProgressText = "Key verification complete";
+            
+            // Compare checksums
+            if (deviceChecksum.Equals(localChecksum, StringComparison.OrdinalIgnoreCase))
+            {
+                KeyChecksum = deviceChecksum;
+                ChkSumStatusColor = "Green";
+                KeyValidationColor = Brushes.Green;
+                KeyValidationMessage = "Key verified successfully";
+                
+                var msgBox = MessageBoxManager.GetMessageBoxStandard(
+                    "Verification Success", 
+                    "The device key matches the local key.\nChecksum: " + deviceChecksum,
+                    ButtonEnum.Ok);
+                await msgBox.ShowAsync();
+            }
+            else
+            {
+                KeyChecksum = $"Local: {localChecksum}, Device: {deviceChecksum}";
+                ChkSumStatusColor = "Red";
+                KeyValidationColor = Brushes.Red;
+                KeyValidationMessage = "Key verification failed - checksums don't match";
+                
+                var msgBox = MessageBoxManager.GetMessageBoxStandard(
+                    "Verification Failed", 
+                    "The device key does not match the local key.\n\n" +
+                    $"Local: {localChecksum}\nDevice: {deviceChecksum}",
+                    ButtonEnum.Ok);
+                await msgBox.ShowAsync();
+            }
+        }
+        else
+        {
+            // We only have the device key checksum
+            KeyChecksum = deviceChecksum;
+            ChkSumStatusColor = "Yellow";
+            KeyValidationColor = Brushes.Yellow;
+            KeyValidationMessage = "No local key to compare with";
+            
+            var msgBox = MessageBoxManager.GetMessageBoxStandard(
+                "No Local Key", 
+                "No local key file found to compare with the device key.\n\n" +
+                $"Device key checksum: {deviceChecksum}\n\n" +
+                "Would you like to download the key from the device?",
+                ButtonEnum.YesNo);
+            
+            var result = await msgBox.ShowAsync();
+            if (result == ButtonResult.Yes)
+            {
+                await DownloadKeyFromDeviceAsync();
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.Error(ex, "Error verifying key");
+        KeyValidationColor = Brushes.Red;
+        KeyValidationMessage = "Error verifying key";
+        throw;
+    }
+    finally
+    {
+        IsProgressBarVisible = false;
+    }
+}
+
+private async Task GetKeyChecksumAsync()
+{
+    try
+    {
+        IsProgressBarVisible = true;
+        ProgressText = "Getting key checksum...";
+        DownloadProgress = 50;
+        
+        // Get the checksum from the device
+        string deviceChecksum = await GetDeviceKeyChecksumAsync();
+        
+        DownloadProgress = 100;
+        ProgressText = "Checksum retrieved";
+        
+        if (!string.IsNullOrEmpty(deviceChecksum))
+        {
+            KeyChecksum = deviceChecksum;
+            ChkSumStatusColor = "Green";
+            KeyValidationColor = Brushes.Green;
+            KeyValidationMessage = "Checksum retrieved successfully";
+        }
+        else
+        {
+            KeyValidationColor = Brushes.Red;
+            KeyValidationMessage = "Could not get key checksum from device";
+        }
+    }
+    catch (Exception ex)
+    {
+        Logger.Error(ex, "Error getting key checksum");
+        KeyValidationColor = Brushes.Red;
+        KeyValidationMessage = "Error getting key checksum";
+        throw;
+    }
+    finally
+    {
+        IsProgressBarVisible = false;
+    }
+}
+
+private async Task<string> GetDeviceKeyChecksumAsync()
+{
+    try
+    {
+        // Download the key file from the device as bytes
+        var keyData = await SshClientService.DownloadFileBytesAsync(
+            DeviceConfig.Instance, 
+            OpenIPC.RemoteDroneKeyPath);
+        
+        if (keyData == null || keyData.Length == 0)
+        {
+            Logger.Warning("Key file not found on device or is empty");
+            return null;
+        }
+        
+        // Calculate the checksum on the client side
+        string checksum = CalculateChecksum(keyData);
+        Logger.Debug($"Device key checksum: {checksum}");
+        
+        return checksum;
+    }
+    catch (Exception ex)
+    {
+        Logger.Error(ex, "Error getting device key checksum");
+        return null;
+    }
+}
+
+private string CalculateChecksum(byte[] data)
+{
+    using (var md5 = MD5.Create())
+    {
+        byte[] hashBytes = md5.ComputeHash(data);
+        var sb = new StringBuilder();
+        
+        // Convert bytes to hex string
+        for (int i = 0; i < hashBytes.Length; i++)
+        {
+            sb.Append(hashBytes[i].ToString("x2"));
+        }
+        
+        return sb.ToString();
+    }
+}
     private async void ScriptFilesRestore()
     {
         Log.Debug("Restore script executed...not implemented yet");
