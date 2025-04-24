@@ -72,6 +72,7 @@ public partial class SetupTabViewModel : ViewModelBase
     [ObservableProperty] private string _keyValidationMessage;
 
     private string _localKeyPath;
+    private string _localDefaultKeyPath;
     private bool _isGeneratingKey;
     
     IMessageBoxService _messageBoxService;
@@ -162,7 +163,8 @@ public partial class SetupTabViewModel : ViewModelBase
         // Initialize key management properties
         KeyManagementActionItems = new ObservableCollectionExtended<string>
         {
-            "Generate New Key",
+            //"Generate New Key",
+            "Use Default Key",
             "Upload Key",
             "Download Key from Device",
             "Verify Key",
@@ -178,6 +180,8 @@ public partial class SetupTabViewModel : ViewModelBase
     
         // Initialize local key path
         _localKeyPath = Path.Combine(OpenIPC.AppDataConfigDirectory, "keys", "drone.key");
+        
+        _localDefaultKeyPath = Path.Combine(OpenIPC.GetBinariesPath(), "drone.key");
     
         Logger.Debug("Key management initialized");
     }
@@ -341,6 +345,10 @@ private async Task ExecuteKeyManagementActionAsync()
         
         switch (SelectedKeyManagementAction)
         {
+            case "Use Default Key":
+                await UploadKeyAsync(_localDefaultKeyPath);
+                break;
+            
             case "Generate New Key":
                 await GenerateNewKeyAsync();
                 break;
@@ -454,7 +462,6 @@ private async Task GenerateNewKeyAsync()
         IsProgressBarVisible = false;
     }
 }
-
 private async Task UploadKeyAsync(string specificKeyPath = null)
 {
     try
@@ -513,7 +520,7 @@ private async Task UploadKeyAsync(string specificKeyPath = null)
         // Restart services if needed
         ProgressText = "Restarting services...";
         DownloadProgress = 90;
-        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, "systemctl restart drone-service || true");
+        await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, DeviceCommands.WfbRestartCommand);
         
         // Get the checksum from the device
         ProgressText = "Verifying key upload...";
@@ -641,11 +648,6 @@ private async Task DownloadKeyFromDeviceAsync()
                 $"Key downloaded successfully to:\n{droneKeyPath}\n\nChecksum: {checksum}",
                 droneKeyPath);
             
-            // var msgBox = MessageBoxManager.GetMessageBoxStandard(
-            //     "Download Complete", 
-            //     $"Key downloaded successfully to:\n{droneKeyPath}\n\nChecksum: {checksum}",
-            //     ButtonEnum.Ok);
-            // await msgBox.ShowAsync();
         }
         else
         {
