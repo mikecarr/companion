@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -9,10 +10,13 @@
              x:DataType="vm:SetupTabViewModel">
 
     <!-- Left Panel -->
-    <!-- <Border BorderThickness="2" Background="Aqua"> -->
     <Panel Margin="0">
         <Grid>
             <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
@@ -29,89 +33,101 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <!-- <ComboBox x:Name="ScriptFilesActionComboBox" Grid.Row="0" Grid.Column="0" -->
-            <!--           PlaceholderText="Script File Actions" -->
-            <!--           FontSize="12" -->
-            <!--           Width="160" -->
-            <!--           ItemsSource="{Binding ScriptFileActionItems}" -->
-            <!--           SelectedItem="{Binding SelectedScriptFileAction}" -->
-            <!--           HorizontalContentAlignment="Left" -->
-            <!--           HorizontalAlignment="Left" -->
-            <!--           IsEnabled="{Binding CanConnect}" -->
-            <!--           ToolTip.Tip="{x:Static assets:Resources.ScriptFilesBackupToolTip}" /> -->
-            <!-- -->
-            <!-- -->
-            <!-- <Button Grid.Row="0" Grid.Column="1" -->
-            <!--         x:Name="ScriptFilesActionButton" -->
-            <!--         Content="Execute" -->
-            <!--         Command="{Binding ScriptFilesCommand}" -->
-            <!--         IsEnabled="False" -->
-            <!--         ToolTip.Tip="{x:Static assets:Resources.ScriptFilesRestoreToolTip}" -->
-                    <!-- HorizontalAlignment="Stretch" /> -->
+            <!-- Key Management Section -->
+            <Border Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" 
+                    BorderBrush="SlateGray" BorderThickness="0,0,0,1" 
+                    Margin="0,5,0,5" Padding="0,0,0,5">
+                <TextBlock Text="Enhanced Key Management" 
+                          FontSize="14" 
+                          FontWeight="Bold" />
+            </Border>
 
-            <!-- <ComboBox x:Name="CameraKeyComboBox" Grid.Row="1" Grid.Column="0" -->
+            <ComboBox Grid.Row="1" Grid.Column="0"
+                      x:Name="KeyManagementActionComboBox"
+                      PlaceholderText="Select Key Action"
+                      FontSize="12"
+                      Width="160"
+                      ItemsSource="{Binding KeyManagementActionItems}"
+                      SelectedItem="{Binding SelectedKeyManagementAction}"
+                      HorizontalContentAlignment="Left"
+                      HorizontalAlignment="Left"
+                      IsEnabled="{Binding CanConnect}" />
+
+            <Button Grid.Row="1" Grid.Column="1"
+                    Content="Execute"
+                    Command="{Binding KeyManagementCommand}"
+                    IsEnabled="{Binding CanConnect}"
+                    HorizontalAlignment="Stretch" />
+
+            <!-- Key Validation Status -->
+            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2"
+                        Orientation="Horizontal" 
+                        Margin="5,5,0,0">
+                <Ellipse Width="10" Height="10" 
+                         Margin="0,3,5,0"
+                         Fill="{Binding KeyValidationColor}" />
+                <TextBlock Text="{Binding KeyValidationMessage}"
+                           FontSize="12" />
+            </StackPanel>
+
+            <Panel Grid.Row="3" Grid.Column="0" Height="10" />
+
+            <!-- Original Key Management Section (Renamed) -->
+            <!-- <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"  -->
+            <!--         BorderBrush="SlateGray" BorderThickness="0,0,0,1"  -->
+            <!--         Margin="0,5,0,5" Padding="0,0,0,5"> -->
+            <!--     <TextBlock Text="Legacy Key Operations"  -->
+            <!--               FontSize="14"  -->
+            <!--               FontWeight="Bold" /> -->
+            <!-- </Border> -->
+            <!-- -->
+            <!-- <ComboBox Grid.Row="5" Grid.Column="0" -->
+            <!--           x:Name="CameraKeyComboBox" -->
             <!--           PlaceholderText="Key Actions" -->
             <!--           FontSize="12" -->
             <!--           Width="160" -->
-            <!--           HorizontalContentAlignment="Left" -->
             <!--           ItemsSource="{Binding DroneKeyActionItems}" -->
             <!--           SelectedItem="{Binding SelectedDroneKeyAction}" -->
+            <!--           HorizontalContentAlignment="Left" -->
             <!--           HorizontalAlignment="Left" -->
             <!--           IsEnabled="{Binding CanConnect}" -->
             <!--           ToolTip.Tip="{x:Static assets:Resources.DroneKeyActionsToolTip}" /> -->
             <!-- -->
-            <!-- <Button Grid.Row="1" Grid.Column="1" Content="Execute" -->
+            <!-- <Button Grid.Row="5" Grid.Column="1"  -->
+            <!--         Content="Execute" -->
             <!--         x:Name="CameraKeyActionButton" -->
             <!--         Command="{Binding EncryptionKeyActionCommand}" -->
             <!--         CommandParameter="CameraKeyComboBox" -->
             <!--         IsEnabled="{Binding CanConnect}" -->
             <!--         ToolTip.Tip="{x:Static assets:Resources.DeviceChkSumToolTip}" -->
             <!--         HorizontalAlignment="Stretch" /> -->
-            <!-- ~1~ </Border> @1@ -->
-            <!-- -->
-            <!-- -->
-            <!-- ~1~ <Border  Grid.Row="2" Grid.Column="0"  BorderBrush="SlateGray" BorderThickness="1"> @1@ -->
-            <!-- <ComboBox Grid.Row="2" Grid.Column="0" x:Name="SensorComboBox" PlaceholderText="Select Sensor" -->
-            <!--           ItemsSource="{Binding LocalSensors}" -->
-            <!--           SelectedItem="{Binding SelectedSensor, Mode=TwoWay}" -->
-            <!--           IsEnabled="{Binding CanConnect}" -->
-            <!--           FontSize="12" -->
-            <!--           Width="160" -->
-            <!--           HorizontalContentAlignment="Left" -->
-            <!--           HorizontalAlignment="Left" /> -->
-            <!-- ~1~ </Border> @1@ -->
-            <!-- -->
-            <!-- ~1~ <Border  Grid.Row="2" Grid.Column="1"  BorderBrush="SlateGray" BorderThickness="1"> @1@ -->
-            <!-- <Button Grid.Row="2" Grid.Column="1" Content="Update" -->
-            <!--         x:Name="SensorActionButton" -->
-            <!--         Command="{Binding SensorFilesUpdateCommand}" -->
-            <!--         CommandParameter="SensorComboBox" -->
-            <!--         IsEnabled="{Binding CanConnect}" -->
-            <!--         ToolTip.Tip="{x:Static assets:Resources.SensorBinUpdateToolTip}" -->
-            <!--         HorizontalAlignment="Stretch" /> -->
-            <!-- </Border> -->
 
-            <!-- <Panel Grid.Row="3" Grid.Column="0" Height="20" /> -->
+            <Panel Grid.Row="6" Grid.Column="0" Height="10" />
 
+            <!-- Checksum Display -->
+            <Border Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" 
+                    BorderBrush="SlateGray" BorderThickness="0,0,0,1" 
+                    Margin="0,5,0,5" Padding="0,0,0,5">
+                <TextBlock Text="Key Status" 
+                          FontSize="14" 
+                          FontWeight="Bold" />
+            </Border>
 
-            <Panel Grid.Row="4" Grid.Column="0" Height="20" />
-
-            <TextBlock Grid.Column="0" Grid.Row="6" Margin="5,0,0,0" 
+            <TextBlock Grid.Column="0" Grid.Row="8" 
+                       Margin="5,5,0,0" 
                        FontSize="12"
-                       Text="Encryption Key Checksum" />
+                       Text="Encryption Key Checksum:" />
 
-            <TextBlock Grid.Column="0" Grid.Row="7" Grid.ColumnSpan="2"
+            <TextBlock Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2"
                        TextWrapping="Wrap"
                        MaxWidth="375"
                        FontSize="12"
-                       Margin="5,0,0,0"
+                       Margin="5,5,0,0"
                        Foreground="{Binding ChkSumStatusColor}"
                        ToolTip.Tip="{x:Static assets:Resources.DeviceChkSumToolTip}"
-                       Text="{Binding KeyChecksum} " />
-
+                       Text="{Binding KeyChecksum}" />
 
         </Grid>
     </Panel>
-    <!-- </Border> -->
 
 </UserControl>
