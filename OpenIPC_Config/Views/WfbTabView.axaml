@@ -126,9 +126,6 @@
                     <Slider MinWidth="150"
                             Maximum="{Binding MaxPower58GHz}" Minimum="0"
                             VerticalAlignment="Center"
-                            IsSnapToTickEnabled="True"
-                            TickPlacement="BottomRight"
-                            TickFrequency="3"
                             Value="{Binding SelectedPower}" 
                             ToolTip.Tip="{x:Static assets:Resources.Select58GHzPowerToolTip}" />
                             <!-- Foreground="{Binding SelectedPower, Converter={StaticResource PowerColorConverter}}" /> -->

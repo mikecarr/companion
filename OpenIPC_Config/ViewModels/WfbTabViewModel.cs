@@ -59,8 +59,8 @@ public partial class WfbTabViewModel : ViewModelBase
     [ObservableProperty] private ObservableCollection<int> _ldpc;
     [ObservableProperty] private ObservableCollection<int> _fecK;
     [ObservableProperty] private ObservableCollection<int> _fecN;
-    [ObservableProperty] private int _maxPower58GHz = 63;
-    [ObservableProperty] private int _maxPower24GHz = 63;
+    [ObservableProperty] private int _maxPower58GHz = 60;
+    [ObservableProperty] private int _maxPower24GHz = 60;
     #endregion
 
     #region Commands
@@ -103,8 +103,8 @@ public partial class WfbTabViewModel : ViewModelBase
         Frequencies58GHz = new ObservableCollectionExtended<string>(_58FrequencyMapping.Values);
         Frequencies24GHz = new ObservableCollectionExtended<string>(_24FrequencyMapping.Values);
 
-        Power58GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower58GHz).Select(i => (i * 3)));
-        Power24GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower24GHz).Select(i => (i * 3)));
+        Power58GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower58GHz).Select(i => (i * 1)));
+        Power24GHz = new ObservableCollection<int>(Enumerable.Range(1, MaxPower24GHz).Select(i => (i * 1)));
 
         Bandwidth = new ObservableCollectionExtended<int> { 20, 40 };
         McsIndex = new ObservableCollectionExtended<int>(Enumerable.Range(1, 31));
