@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -49,6 +50,9 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty] private bool _isWaiting;
     [ObservableProperty] private bool _isConnected;
     
+    [ObservableProperty] private ObservableCollection<string> _cachedIpAddresses = new();
+    [ObservableProperty] private string _selectedCachedIpAddress;
+
 
     public MainViewModel(ILogger logger,
         ISshClientService sshClientService,
@@ -225,6 +229,15 @@ public partial class MainViewModel : ViewModelBase
         });
     }
 
+    partial void OnSelectedCachedIpAddressChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            _logger.Debug($"Selected cached IP: {value}");
+            IpAddress = value;
+        }
+    }
+    
     partial void OnIpAddressChanged(string value)
     {
         _logger.Verbose($"IP Address changed to: {value}");
@@ -390,8 +403,36 @@ public partial class MainViewModel : ViewModelBase
     
     #endregion
 
+    // Add this method to the MainViewModel class
+    private void AddCurrentIpToCache()
+    {
+        if (!string.IsNullOrEmpty(IpAddress) && Utilities.IsValidIpAddress(IpAddress))
+        {
+            // Check if the IP is already in the cache
+            if (!CachedIpAddresses.Contains(IpAddress))
+            {
+                // Add to the beginning of the list for most recent first
+                CachedIpAddresses.Insert(0, IpAddress);
+            
+                // Limit the cache to 10 items
+                while (CachedIpAddresses.Count > 10)
+                {
+                    CachedIpAddresses.RemoveAt(CachedIpAddresses.Count - 1);
+                }
+            
+                // Update the cached IPs in DeviceConfig
+                _deviceConfig.CachedIpAddresses = CachedIpAddresses.ToList();
+            
+                // Log the update
+                _logger.Debug($"Added IP {IpAddress} to cache. Cache now contains {CachedIpAddresses.Count} IPs.");
+            }
+        }
+    }
     private async void Connect()
     {
+        // Add the current IP to the cache
+        AddCurrentIpToCache();
+        
         var appMessage = new AppMessage();
         //DeviceConfig deviceConfig = new DeviceConfig();
         _deviceConfig.Username = "root";
@@ -474,6 +515,9 @@ public partial class MainViewModel : ViewModelBase
         _deviceConfig.Port = Port;
         _deviceConfig.Password = Password;
 
+        // Save the cached IPs
+        _deviceConfig.CachedIpAddresses = CachedIpAddresses.ToList();
+        
         // save config to file
         SettingsManager.SaveSettings(_deviceConfig);
     }
@@ -904,6 +948,9 @@ public partial class MainViewModel : ViewModelBase
         Password = settings.Password;
         Port = settings.Port == 0 ? 22 : settings.Port;
         SelectedDeviceType = settings.DeviceType;
+        
+        // Load cached IP addresses first
+        CachedIpAddresses = new ObservableCollection<string>(settings.CachedIpAddresses ?? new List<string>());
 
         // Publish the initial device type
         EventSubscriptionService.Publish<DeviceTypeChangeEvent, DeviceType>(settings.DeviceType);

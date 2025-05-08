@@ -22,6 +22,8 @@ public class DeviceConfig : INotifyPropertyChanged
     
     private int _port;
     private string _username;
+    
+    
     #endregion
 
     #region Constructor
@@ -80,6 +82,11 @@ public class DeviceConfig : INotifyPropertyChanged
             OnPropertyChanged();
         }
     }
+    
+    /// <summary>
+    /// Gets or sets the list of cached IP addresses
+    /// </summary>
+    public List<string> CachedIpAddresses { get; set; } = new List<string>();
 
     /// <summary>
     /// Gets or sets the hostname of the device

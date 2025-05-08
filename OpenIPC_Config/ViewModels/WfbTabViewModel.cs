@@ -110,8 +110,8 @@ public partial class WfbTabViewModel : ViewModelBase
         McsIndex = new ObservableCollectionExtended<int>(Enumerable.Range(1, 31));
         Stbc = new ObservableCollectionExtended<int> { 0, 1 };
         Ldpc = new ObservableCollectionExtended<int> { 0, 1 };
-        FecK = new ObservableCollectionExtended<int>(Enumerable.Range(0, 13));
-        FecN = new ObservableCollectionExtended<int>(Enumerable.Range(0, 13));
+        FecK = new ObservableCollectionExtended<int>(Enumerable.Range(0, 20));
+        FecN = new ObservableCollectionExtended<int>(Enumerable.Range(0, 20));
     }
 
     private void InitializeCommands()

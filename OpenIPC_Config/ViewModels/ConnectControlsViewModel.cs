@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -44,6 +46,11 @@ public partial class ConnectControlsViewModel : ViewModelBase
     [ObservableProperty] private string _ipAddress;
     [ObservableProperty] private string _password;
     [ObservableProperty] private int _port = 22;
+    
+    // Add these properties to your ConnectControlsViewModel class
+    [ObservableProperty] private ObservableCollection<string> _cachedIpAddresses = new();
+    [ObservableProperty] private string _selectedIpAddress;
+
     #endregion
 
     #region Public Properties
@@ -142,6 +149,15 @@ public partial class ConnectControlsViewModel : ViewModelBase
         CheckIfCanConnect();
     }
 
+    // Add this property changed handler 
+    partial void OnSelectedIpAddressChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            IpAddress = value;
+        }
+    }
+    
     partial void OnIpAddressChanged(string value)
     {
         CheckIfCanConnect();
@@ -165,6 +181,18 @@ public partial class ConnectControlsViewModel : ViewModelBase
         IpAddress = settings.IpAddress;
         Password = settings.Password;
         SelectedDeviceType = settings.DeviceType;
+        
+        // Load cached IP addresses
+        CachedIpAddresses = new ObservableCollection<string>(settings.CachedIpAddresses ?? new List<string>());
+    
+        // If current IP isn't in the cache and is valid, add it
+        if (!string.IsNullOrEmpty(IpAddress) && 
+            Utilities.IsValidIpAddress(IpAddress) && 
+            !CachedIpAddresses.Contains(IpAddress))
+        {
+            CachedIpAddresses.Add(IpAddress);
+        }
+
 
         EventSubscriptionService.Publish<DeviceTypeChangeEvent, DeviceType>(SelectedDeviceType);
     }
