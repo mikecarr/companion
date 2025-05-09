@@ -63,7 +63,7 @@ public static class SettingsManager
             IpAddress = "",
             Username = "",
             Password = "",
-            DeviceType = DeviceType.Camera
+            DeviceType = DeviceType.Camera,
         };
     }
 

@@ -27,9 +27,19 @@
                        VerticalAlignment="Top">
 
                 <!-- IP Address -->
+                <!-- <StackPanel Margin="3"> -->
+                <!--     <Label Content="IP Address" /> -->
+                <!--     <TextBox MinWidth="150" Height="30" Text="{Binding IpAddress}" /> -->
+                <!-- </StackPanel> -->
+                
+                <!-- IP Address (Changed from TextBox to ComboBox) -->
                 <StackPanel Margin="3">
                     <Label Content="IP Address" />
-                    <TextBox MinWidth="150" Height="30" Text="{Binding IpAddress}" />
+                    <ComboBox MinWidth="150" Height="30" 
+                              PlaceholderText="{Binding IpAddress}"
+                              ItemsSource="{Binding CachedIpAddresses}"
+                              SelectedItem="{Binding SelectedIpAddress}"
+                              />
                 </StackPanel>
 
                 <!-- Port -->

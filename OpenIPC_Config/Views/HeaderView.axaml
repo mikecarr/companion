@@ -174,12 +174,28 @@
                 </Grid.RowDefinitions>
 
                 <!-- IP Address -->
-                <TextBox Width="200" Height="30" Watermark="IP Address"
-                         Text="{Binding IpAddress, Mode=TwoWay}"
-                         Background="{Binding EntryBoxBgColor}"
-                         HorizontalAlignment="Left"
-                         Classes="InputBox" Grid.Row="0" Margin="0,5,0,0"
-                         ToolTip.Tip="Device IP Address" />
+                <!-- <TextBox Width="200" Height="30" Watermark="IP Address" -->
+                <!--          Text="{Binding IpAddress, Mode=TwoWay}" -->
+                <!--          Background="{Binding EntryBoxBgColor}" -->
+                <!--          HorizontalAlignment="Left" -->
+                <!--          Classes="InputBox" Grid.Row="0" Margin="0,5,0,0" -->
+                <!--          ToolTip.Tip="Device IP Address" /> -->
+                <!-- Replace TextBox with ComboBox for IP Address -->
+                <!-- Replace TextBox with AutoCompleteBox for IP Address -->
+                <AutoCompleteBox Width="200" 
+                                 Height="30" 
+                                 Watermark="IP Address"
+                                 Text="{Binding IpAddress, Mode=TwoWay}"
+                                 ItemsSource="{Binding CachedIpAddresses}"
+                                 SelectedItem="{Binding SelectedCachedIpAddress}"
+                                 Background="{Binding EntryBoxBgColor}"
+                                 HorizontalAlignment="Left"
+                                 Classes="InputBox" 
+                                 Grid.Row="0" 
+                                 Margin="0,5,0,0"
+                                 FilterMode="Contains"
+                                 ToolTip.Tip="Device IP Address" />
+
                 <StackPanel Orientation="Horizontal" Spacing="10" Grid.Row="1">
 
                     <!-- Device Type -->

@@ -263,7 +263,7 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
         };
 
         Codec = new ObservableCollection<string> { "h264", "h265" };
-        Bitrate = new ObservableCollection<string>(Enumerable.Range(1, 20).Select(i => (i * 1024).ToString()));
+        Bitrate = new ObservableCollection<string>(Enumerable.Range(1, 40).Select(i => (i * 1024).ToString()));
         Exposure = new ObservableCollection<string> { "5", "6", "8", "10", "11", "12", "14", "16", "33", "50" };
 
         Contrast = new ObservableCollection<string>(Enumerable.Range(1, 100).Select(i => (i * 5).ToString()));
