@@ -81,6 +81,7 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
     [ObservableProperty] private bool _canConnect;
     [ObservableProperty] private bool _isOnboardRecOn;
     [ObservableProperty] private bool _isAudioEnabled;
+    [ObservableProperty] private bool _isNoTimeEnabled;
     
     #endregion
 
@@ -189,6 +190,12 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
     {
         Logger.Information($"Onboard recording toggled to: {value}");
         _yamlConfig[Majestic.RecordsEnabled] = value.ToString().ToLower();
+    }
+    
+    partial void OnIsNoTimeEnabledChanged(bool value)
+    {
+        Logger.Information($"Notime recording toggled to: {value}");
+        _yamlConfig[Majestic.RecordsNoTime] = value.ToString().ToLower();
     }
     
     partial void OnIsAudioEnabledChanged(bool value)
@@ -390,6 +397,16 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
         else
         {
             IsAudioEnabled = false;
+        }
+        
+        if (_yamlConfig.TryGetValue(Majestic.RecordsNoTime, out var recordsNoTimeValue) &&
+            bool.TryParse(recordsNoTimeValue?.ToString(), out var recordsNoTime))
+        {
+            IsNoTimeEnabled = recordsNoTime;
+        }
+        else
+        {
+            IsNoTimeEnabled = false;
         }
     }
     #endregion

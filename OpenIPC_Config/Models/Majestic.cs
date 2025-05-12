@@ -25,4 +25,6 @@ public static class Majestic
 
     public const string RecordsEnabled = "records.enabled";
     public const string AudioEnabled = "audio.enabled";
+    public const string RecordsNoTime = "records.notime";
+    
 }

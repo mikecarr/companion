@@ -339,6 +339,11 @@ namespace OpenIPC_Config.Assets {
         {
             get { return ResourceManager.GetString("FirmwareLocalToolTip", resourceCulture); }
         }
+        
+        public static string RecordsNoTimeToolTip
+        {
+            get { return ResourceManager.GetString("RecordsNoTimeToolTip", resourceCulture); }
+        }
 
     }
 }

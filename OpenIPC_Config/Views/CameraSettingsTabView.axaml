@@ -52,7 +52,8 @@
                     <Label Grid.Row="9" Grid.Column="0" Content="Flip" ToolTip.Tip="Select Flip" />
                     <Label Grid.Row="10" Grid.Column="0" Content="Mirror" ToolTip.Tip="Select Mirror" />
                     <Label Grid.Row="9" Grid.Column="2" Content="Onboard Record" ToolTip.Tip="Onboard Record" />
-                    <Label Grid.Row="10" Grid.Column="2" Content="Enable Audio" ToolTip.Tip="Enable Audio" />
+                    <Label Grid.Row="10" Grid.Column="2" Content="Record NoTime" ToolTip.Tip="{x:Static assets:Resources.RecordsNoTimeToolTip}" />
+                    <Label Grid.Row="11" Grid.Column="2" Content="Enable Audio" ToolTip.Tip="Enable Audio" />
 
                     <ComboBox Grid.Row="0" Grid.Column="1" ItemsSource="{Binding Resolution}"
                               IsEnabled="{Binding CanConnect}"
@@ -115,6 +116,15 @@
                                   ToolTip.Tip="{x:Static assets:Resources.RecOnToolTip}" />
                     
                     <ToggleSwitch Grid.Row="10" Grid.Column="3" 
+                                  OnContent="ON" OffContent="OFF"
+                                  Padding="0,5,0,0"
+                                  Margin="5,0,0,0"
+                                  IsEnabled="{Binding CanConnect}"
+                                  IsChecked="{Binding IsNoTimeEnabled}"
+                                  ToolTip.Tip="{x:Static assets:Resources.RecordsNoTimeToolTip}" />
+
+                    
+                    <ToggleSwitch Grid.Row="11" Grid.Column="3" 
                                   OnContent="ON" OffContent="OFF"
                                   Padding="0,5,0,0"
                                   Margin="5,0,0,0"

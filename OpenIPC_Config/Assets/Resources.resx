@@ -296,4 +296,7 @@ Add OSD SOC Temperature</value>
     <data name="FirmwareLocalToolTip" xml:space="preserve">
         <value>If you have downlaoded firmware locally, select the file here</value>
     </data>
+    <data name="RecordsNoTimeToolTip" xml:space="preserve">
+        <value>When Onboard Recording is enabled and this is Enabled will not use time for recorded file naming, instead uses incremental numbering</value>
+    </data>
 </root>
