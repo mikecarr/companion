@@ -81,6 +81,7 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
     [ObservableProperty] private bool _canConnect;
     [ObservableProperty] private bool _isOnboardRecOn;
     [ObservableProperty] private bool _isAudioEnabled;
+    [ObservableProperty] private bool _isNoTimeEnabled;
     
     #endregion
 
@@ -191,6 +192,12 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
         _yamlConfig[Majestic.RecordsEnabled] = value.ToString().ToLower();
     }
     
+    partial void OnIsNoTimeEnabledChanged(bool value)
+    {
+        Logger.Information($"Notime recording toggled to: {value}");
+        _yamlConfig[Majestic.RecordsNoTime] = value.ToString().ToLower();
+    }
+    
     partial void OnIsAudioEnabledChanged(bool value)
     {
         Logger.Information($"audio toggled to: {value}");
@@ -263,7 +270,7 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
         };
 
         Codec = new ObservableCollection<string> { "h264", "h265" };
-        Bitrate = new ObservableCollection<string>(Enumerable.Range(1, 20).Select(i => (i * 1024).ToString()));
+        Bitrate = new ObservableCollection<string>(Enumerable.Range(1, 40).Select(i => (i * 1024).ToString()));
         Exposure = new ObservableCollection<string> { "5", "6", "8", "10", "11", "12", "14", "16", "33", "50" };
 
         Contrast = new ObservableCollection<string>(Enumerable.Range(1, 100).Select(i => (i * 5).ToString()));
@@ -390,6 +397,16 @@ public partial class CameraSettingsTabViewModel : ViewModelBase
         else
         {
             IsAudioEnabled = false;
+        }
+        
+        if (_yamlConfig.TryGetValue(Majestic.RecordsNoTime, out var recordsNoTimeValue) &&
+            bool.TryParse(recordsNoTimeValue?.ToString(), out var recordsNoTime))
+        {
+            IsNoTimeEnabled = recordsNoTime;
+        }
+        else
+        {
+            IsNoTimeEnabled = false;
         }
     }
     #endregion
