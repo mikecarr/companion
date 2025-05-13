@@ -204,9 +204,9 @@ public partial class SetupTabViewModel : ViewModelBase
         ScriptFileActionItems = new ObservableCollectionExtended<string> { "Backup", "Restore" };
         DroneKeyActionItems = new ObservableCollectionExtended<string> { "Send", "Receive" };
 
-        //var binariesPath = OpenIPC.GetBinariesPath();
-        //var directoryPath = Path.Combine(binariesPath, "sensors");
-        //PopulateSensorFileNames(directoryPath);
+        var binariesPath = OpenIPC.GetBinariesPath();
+        var directoryPath = Path.Combine(binariesPath, "sensors");
+        PopulateSensorFileNames(directoryPath);
 
         InitializeFirmwareVersions();
     }
@@ -891,7 +891,7 @@ private string CalculateChecksum(byte[] data)
         Log.Debug("SensorDriverUpdate executed..done");
     }
 
-    private async void SensorFilesUpdate()
+    public async void SensorFilesUpdate()
     {
         DownloadProgress = 0;
         IsProgressBarVisible = true;
@@ -919,10 +919,6 @@ private string CalculateChecksum(byte[] data)
         //SshClientService.ExecuteCommandAsync(DeviceConfig.Instance, $"yaml-cli -s .video0.sensorConfig {OpenIPC_Config.RemoteSensorsFolder}/{selectedSensor}");
         await SshClientService.ExecuteCommandAsync(DeviceConfig.Instance,
             $"yaml-cli -s .isp.sensorConfig {OpenIPC.RemoteSensorsFolder}/{selectedSensor}");
-
-        // echo y | pscp -scp -pw %3 sensors/%4 root@%2:/etc/sensors/ 
-        //     plink -ssh root@%2 -pw %3 yaml-cli -s .isp.sensorConfig /etc/sensors/%4
-        //echo y | pscp -scp -pw %3 %4 root@%2:/etc/sensors/
 
         //SshClientService.UploadDirectoryAsync(DeviceConfig.Instance, OpenIPC_Config.LocalSensorsFolder,
         // OpenIPC_Config.RemoteSensorsFolder);
