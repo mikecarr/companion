@@ -72,36 +72,6 @@
 
             <Panel Grid.Row="3" Grid.Column="0" Height="10" />
 
-            <!-- Original Key Management Section (Renamed) -->
-            <!-- <Border Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2"  -->
-            <!--         BorderBrush="SlateGray" BorderThickness="0,0,0,1"  -->
-            <!--         Margin="0,5,0,5" Padding="0,0,0,5"> -->
-            <!--     <TextBlock Text="Legacy Key Operations"  -->
-            <!--               FontSize="14"  -->
-            <!--               FontWeight="Bold" /> -->
-            <!-- </Border> -->
-            <!-- -->
-            <!-- <ComboBox Grid.Row="5" Grid.Column="0" -->
-            <!--           x:Name="CameraKeyComboBox" -->
-            <!--           PlaceholderText="Key Actions" -->
-            <!--           FontSize="12" -->
-            <!--           Width="160" -->
-            <!--           ItemsSource="{Binding DroneKeyActionItems}" -->
-            <!--           SelectedItem="{Binding SelectedDroneKeyAction}" -->
-            <!--           HorizontalContentAlignment="Left" -->
-            <!--           HorizontalAlignment="Left" -->
-            <!--           IsEnabled="{Binding CanConnect}" -->
-            <!--           ToolTip.Tip="{x:Static assets:Resources.DroneKeyActionsToolTip}" /> -->
-            <!-- -->
-            <!-- <Button Grid.Row="5" Grid.Column="1"  -->
-            <!--         Content="Execute" -->
-            <!--         x:Name="CameraKeyActionButton" -->
-            <!--         Command="{Binding EncryptionKeyActionCommand}" -->
-            <!--         CommandParameter="CameraKeyComboBox" -->
-            <!--         IsEnabled="{Binding CanConnect}" -->
-            <!--         ToolTip.Tip="{x:Static assets:Resources.DeviceChkSumToolTip}" -->
-            <!--         HorizontalAlignment="Stretch" /> -->
-
             <Panel Grid.Row="6" Grid.Column="0" Height="10" />
 
             <!-- Checksum Display -->
@@ -127,6 +97,32 @@
                        ToolTip.Tip="{x:Static assets:Resources.DeviceChkSumToolTip}"
                        Text="{Binding KeyChecksum}" />
 
+            <!-- Sensors Section -->
+            <Border Grid.Row="10" Grid.Column="0" Grid.ColumnSpan="2" 
+                    BorderBrush="SlateGray" BorderThickness="0,0,0,1" 
+                    Margin="0,15,0,5" Padding="0,0,0,5">
+                <TextBlock Text="Camera Sensors" 
+                           FontSize="14" 
+                           FontWeight="Bold" />
+            </Border>
+
+            <ComboBox Grid.Row="11" Grid.Column="0"
+                      x:Name="SensorsComboBox"
+                      PlaceholderText="Select Sensor"
+                      FontSize="12"
+                      Width="160"
+                      ItemsSource="{Binding LocalSensors}"
+                      SelectedItem="{Binding SelectedSensor}"
+                      HorizontalContentAlignment="Left"
+                      HorizontalAlignment="Left"
+                      IsEnabled="{Binding CanConnect}" />
+
+            <Button Grid.Row="11" Grid.Column="1"
+                    Content="Apply"
+                    Command="{Binding SensorFilesUpdate}"
+                    IsEnabled="{Binding CanConnect}"
+                    HorizontalAlignment="Stretch" />
+            
         </Grid>
     </Panel>
 
