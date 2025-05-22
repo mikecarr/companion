@@ -42,7 +42,7 @@ public partial class FirmwareTabViewModel : ViewModelBase
     private readonly IGitHubService _gitHubService;
     private bool _bInitializedCommands = false;
     private bool _bRecursionSelectGuard = false;
-    IMessageBoxService _messageBoxService;
+    private readonly IMessageBoxService _messageBoxService;
     #endregion
 
     #region Observable Properties
