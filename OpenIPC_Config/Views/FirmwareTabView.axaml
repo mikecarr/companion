@@ -33,7 +33,7 @@
         </Border>
 
         <Border Background="#F0F0F0" CornerRadius="8" Padding="16" Margin="8">
-            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*"
                   ColumnDefinitions="Auto,Auto,Auto"
                   ShowGridLines="False">
 
@@ -142,19 +142,35 @@
                         Margin="0,10,0,0" />
 
 
-                <TextBlock Grid.Column="0" Grid.Row="8" Grid.ColumnSpan="3"
-                           Margin="0,50,0,5"
-                           Text="Firmware Upgrade Progress" FontWeight="Medium" />
                 
-                <ProgressBar Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="3"
-                             Background="#F0F0F0"
-                             Minimum="0" Maximum="100" 
-                             Value="{Binding ProgressValue}" 
-                            />                
+                <!-- <ProgressBar Grid.Column="0" Grid.Row="9"  -->
+                <!--              Grid.ColumnSpan="2" -->
+                <!--              Background="#F0F0F0" -->
+                <!--              ShowProgressText="True" -->
+                <!--              Minimum="0" Maximum="100" -->
+                <!--              Height="18" -->
+                <!--              Value="{Binding ProgressValue}" -->
+                <!--               -->
+                <!-- /> -->
 
             </Grid>
         </Border>
+        
+        <Border Background="#F0F0F0" CornerRadius="8" Padding="16" Margin="8">
+            <StackPanel Orientation="Vertical">
+            <TextBlock Margin="10,0,10,0"
+                       Text="Firmware Upgrade Progress" FontWeight="Medium" />
 
+            <ProgressBar Background="#F0F0F0"
+                         Margin="10,0,10,0"
+                         ShowProgressText="True"
+                         Minimum="0" Maximum="100"
+                         Height="18"
+                         Value="{Binding ProgressValue}"
+                                 
+            />
+            </StackPanel>
+        </Border>
     </StackPanel>
 
 
