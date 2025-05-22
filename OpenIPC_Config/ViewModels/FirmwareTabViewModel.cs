@@ -15,6 +15,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.VisualBasic;
+using MsBox.Avalonia.Enums;
 using Newtonsoft.Json.Linq;
 using OpenIPC_Config.Events;
 using OpenIPC_Config.Models;
@@ -41,6 +42,7 @@ public partial class FirmwareTabViewModel : ViewModelBase
     private readonly IGitHubService _gitHubService;
     private bool _bInitializedCommands = false;
     private bool _bRecursionSelectGuard = false;
+    IMessageBoxService _messageBoxService;
     #endregion
 
     #region Observable Properties
@@ -119,10 +121,12 @@ public partial class FirmwareTabViewModel : ViewModelBase
         ILogger logger,
         ISshClientService sshClientService,
         IEventSubscriptionService eventSubscriptionService,
-        IGitHubService gitHubService)
+        IGitHubService gitHubService,
+        IMessageBoxService messageBoxService)
         : base(logger, sshClientService, eventSubscriptionService)
     {
         _gitHubService = gitHubService;
+        _messageBoxService = messageBoxService;
         _httpClient = new HttpClient();
         _sysupgradeService = new SysUpgradeService(sshClientService, logger);
         _bInitializedCommands = false;
@@ -1021,12 +1025,13 @@ public partial class FirmwareTabViewModel : ViewModelBase
 
                 await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    ProgressValue = 100;
+                    //ProgressValue = 100;
                     Logger.Information("Firmware upgrade completed successfully.");
                 });
             });
 
             ProgressValue = 100;
+            await _messageBoxService.ShowCustomMessageBox("Upgrade Complete!!", "Done reading from device!", ButtonEnum.Ok, Icon.Success);
             Logger.Information("Firmware upgrade completed successfully.");
         }
         catch (Exception ex)
