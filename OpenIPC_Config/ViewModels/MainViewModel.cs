@@ -380,7 +380,7 @@ public partial class MainViewModel : ViewModelBase
                 // Only update the UI state if the IP we pinged is still the current IP
                 if (ipBeingPinged == IpAddress)
                 {
-                    _logger.Error(pingEx, $"Error occurred during ping to {ipBeingPinged}");
+                    Debug.WriteLine(pingEx, $"Error occurred during ping to {ipBeingPinged}");
                     IsConnected = false;
                     IsWaiting = true;
                     _logger.Verbose("Current state after exception: IsConnected=False, IsWaiting=True");
@@ -391,7 +391,7 @@ public partial class MainViewModel : ViewModelBase
                 }
             }
         
-            _logger.Verbose($"After ping to {ipBeingPinged}: IsConnected={IsConnected}, IsWaiting={IsWaiting}");
+            Debug.WriteLine($"After ping to {ipBeingPinged}: IsConnected={IsConnected}, IsWaiting={IsWaiting}");
         }
         catch (Exception ex)
         {

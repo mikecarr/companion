@@ -17,6 +17,7 @@ public class FirmwareTabViewModelTests
     private Mock<ISshClientService> _mockSshClientService;
     private Mock<IEventSubscriptionService> _mockEventSubscriptionService;
     private Mock<IGitHubService> _mockGithubService;
+    private Mock<IMessageBoxService> _mockMessageBoxService;
 
     [SetUp]
     public void Setup()
@@ -26,13 +27,15 @@ public class FirmwareTabViewModelTests
 
         _mockSshClientService = new Mock<ISshClientService>();
         _mockEventSubscriptionService = new Mock<IEventSubscriptionService>();
-        _mockGithubService = new Mock<IGitHubService>(); 
+        _mockGithubService = new Mock<IGitHubService>();
+        _mockMessageBoxService = new Mock<IMessageBoxService>();
         
         _viewModel = new FirmwareTabViewModel(
             _mockLogger.Object,
             _mockSshClientService.Object,
             _mockEventSubscriptionService.Object,
-            _mockGithubService.Object);
+            _mockGithubService.Object,
+            _mockMessageBoxService.Object);
     }
 
 
