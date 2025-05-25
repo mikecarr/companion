@@ -73,7 +73,7 @@ public static class DeviceCommands
     public static string GetNetworkCardType = "lsusb";
 
     // Improved command to add alink_drone if not present
-    public const string AddAlinkDroneToRcLocal = "grep -q \"alink_drone\" /etc/rc.local || sed -i '/^exit 0/i # Start alink drone service\\n/usr/bin/alink_drone --ip 10.5.0.10 --port 9999 \\&\\n' /etc/rc.local";
+    public const string AddAlinkDroneToRcLocal = "grep -q \"alink_drone\" /etc/rc.local || sed -i '/^exit 0/i # Start alink drone service\\n/usr/bin/alink_drone \\&\\n' /etc/rc.local";
 
     // Improved command to remove both the service line and its comment
     public const string RemoveAlinkDroneFromRcLocal = "sed -i '/# Start alink drone service/d; /alink_drone/d; /^$/d' /etc/rc.local";
