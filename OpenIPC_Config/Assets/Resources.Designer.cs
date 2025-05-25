@@ -344,6 +344,11 @@ namespace OpenIPC_Config.Assets {
         {
             get { return ResourceManager.GetString("RecordsNoTimeToolTip", resourceCulture); }
         }
+        
+        public static string ALinkSwitchToolTip
+        {
+            get { return ResourceManager.GetString("ALinkSwitchToolTip", resourceCulture); }
+        }
 
     }
 }
