@@ -299,4 +299,7 @@ Add OSD SOC Temperature</value>
     <data name="RecordsNoTimeToolTip" xml:space="preserve">
         <value>When Onboard Recording is enabled and this is Enabled will not use time for recorded file naming, instead uses incremental numbering</value>
     </data>
+    <data name="ALinkSwitchToolTip" xml:space="preserve">
+        <value>Will enable or disable Adaptive Link, if you are on stock, it will use the default profile.</value>
+    </data>
 </root>

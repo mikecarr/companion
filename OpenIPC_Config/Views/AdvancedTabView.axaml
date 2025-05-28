@@ -5,6 +5,7 @@
              xmlns:vm="clr-namespace:OpenIPC_Config"
              xmlns:viewModels="clr-namespace:OpenIPC_Config.ViewModels"
              xmlns:converters="clr-namespace:OpenIPC_Config.Converters"
+             xmlns:assets="clr-namespace:OpenIPC_Config.Assets"
              mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
              x:Class="OpenIPC_Config.Views.AdvancedTabView"
              x:DataType="viewModels:AdvancedTabViewModel">
@@ -99,7 +100,7 @@
                             </Grid>
 
 
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" ToolTip.Tip="{x:Static assets:Resources.ALinkSwitchToolTip}">
                                 <TextBlock VerticalAlignment="Center">Alink Drone on Boot:</TextBlock>
                                 <ToggleSwitch IsChecked="{Binding IsAlinkDroneEnabled}"
                                               IsEnabled="{Binding CanConnect}"
