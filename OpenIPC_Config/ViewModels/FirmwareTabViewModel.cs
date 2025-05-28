@@ -1031,7 +1031,7 @@ public partial class FirmwareTabViewModel : ViewModelBase
             });
 
             ProgressValue = 100;
-            await _messageBoxService.ShowCustomMessageBox("Upgrade Complete!!", "Done reading from device!", ButtonEnum.Ok, Icon.Success);
+            await _messageBoxService.ShowCustomMessageBox("Upgrade Complete!!", "Device has been flashed!", ButtonEnum.Ok, Icon.Success);
             Logger.Information("Firmware upgrade completed successfully.");
         }
         catch (Exception ex)
