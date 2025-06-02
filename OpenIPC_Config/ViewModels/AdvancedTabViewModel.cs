@@ -83,6 +83,12 @@ public partial class AdvancedTabViewModel : ViewModelBase
 
     #region Adaptive Link Methods
 
+    partial void OnIsAlinkDroneEnabledChanged(bool value)
+    {
+        // This will be called when the toggle switch changes
+        _ = Task.Run(async () => await ToggleAlinkDroneAsync());
+    }
+    
     // Method to toggle the alink_drone status
     private async Task ToggleAlinkDroneAsync()
     {
@@ -99,7 +105,7 @@ public partial class AdvancedTabViewModel : ViewModelBase
             }
 
             // Toggle the value - this will be from the current to the new state
-            bool newValue = !IsAlinkDroneEnabled;
+            bool newValue = IsAlinkDroneEnabled;
 
             // Execute the appropriate command based on the NEW value
             string command = newValue
@@ -189,6 +195,7 @@ public partial class AdvancedTabViewModel : ViewModelBase
 
             var checkResult =
                 await SshClientService.ExecuteCommandWithResponseAsync(deviceConfig, checkCommand, cancellationToken);
+            
             string statusOutput = checkResult?.Result?.Trim() ?? "Failed to check status";
 
             if (statusOutput != "INSTALLED")
