@@ -60,6 +60,21 @@ Based off of MarioFPV's [OpenIPC Config](https://github.com/OpenIPC/configurator
 * `Styles`: contains styles and resources for the application, including themes and fonts
 * `README.md`: this file, containing information about the project and its features
 
+## App Configuration
+
+### Application Settings:
+
+* Update checking - Points to a GitHub release endpoint to check for the latest version
+* Logging configuration - Sets up console and file logging with debug-level output, storing logs in the user's Application Support directory with daily rotation
+* Device hostname mapping - Maps different device types (Camera, Radxa, NVR) to their expected hostnames for automatic device detection
+* Preset repositories - Configures multiple GitHub repositories containing FPV (First Person View) camera presets, including both official OpenIPC presets and custom user presets
+
+### App Configuration locations
+* Mac: "$HOME/Library/Application Support/OpenIPC_Config/appsettings.json"
+* Windows: %APPDATA%\Local\OpenIPC_Config\appsettings.json
+* Linux: ~/.config/appsettings.json
+
+
 ## Logging
 
 https://github.com/serilog/serilog/wiki/Configuration-Basics
