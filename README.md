@@ -4,6 +4,9 @@
 
 A multi-platform configuration tool for OpenIPC cameras, built using Avalonia UI. The application provides a user-friendly interface for managing camera settings, viewing telemetry data, and setting up the camera.
 
+[![Telegram](https://openipc.org/images/telegram_button.svg)][telegram]
+
+
 [Demo on YouTube](https://www.youtube.com/watch?v=iJXXMcnOC7w)
 
 * Android and IOS versions coming soon!
@@ -153,3 +156,18 @@ reportgenerator -reports:"TestResults/**/*.xml" -targetdir:coverage-report -repo
 
 IOS:
 https://docs.avaloniaui.net/docs/guides/platforms/ios/build-and-run-your-application-on-your-iphone-or-ipad
+
+
+[chat]: https://openipc.org/our-channels
+[contribution]: https://opencollective.com/openipc/contribute/backer-14335/checkout
+
+
+[firmware]: https://github.com/openipc/firmware
+[logo]: https://openipc.org/assets/openipc-logo-black.svg
+[mit]: https://opensource.org/license/mit
+[opencollective]: https://opencollective.com/openipc
+[paypal]: https://www.paypal.com/donate/?hosted_button_id=C6F7UJLA58MBS
+[project]: https://github.com/openipc
+[telegram]: https://openipc.org/our-channels
+[website]: https://openipc.org
+[wiki]: https://github.com/openipc/wiki
