@@ -1,4 +1,4 @@
-# OpenIPC Companion
+# Companion
 
 ![OpenIPC](OpenIPC_Config/Assets/Icons/OpenIPC.png)
 
