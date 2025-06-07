@@ -118,6 +118,16 @@ public class App : Application
                 // }
             }
 
+            // Change due to rename
+            if (existingSettings["UpdateChecker"] != null)
+            {
+                existingSettings["UpdateChecker"] = new JObject(
+                    new JProperty("LatestJsonUrl", "https://github.com/OpenIPC/companion/releases/latest/download/latest.json")
+                );
+                
+                hasChanges = true;
+                Log.Information("Added Presets section to existing settings");
+            }
             // Check if Presets section exists, add if missing
             if (existingSettings["Presets"] == null)
             {
@@ -393,7 +403,7 @@ public class App : Application
             new JProperty("UpdateChecker",
                 new JObject(
                     new JProperty("LatestJsonUrl",
-                        "https://github.com/OpenIPC/openipc-configurator/releases/latest/download/latest.json")
+                        "https://github.com/OpenIPC/companion/releases/latest/download/latest.json")
                 )
             ),
             new JProperty("Presets",
