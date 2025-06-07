@@ -1,10 +1,8 @@
-# OpenIPC Configurator
+# OpenIPC Companion
 
 ![OpenIPC](OpenIPC_Config/Assets/Icons/OpenIPC.png)
 
 A multi-platform configuration tool for OpenIPC cameras, built using Avalonia UI. The application provides a user-friendly interface for managing camera settings, viewing telemetry data, and setting up the camera.
-
-Based off of MarioFPV's [OpenIPC Config](https://github.com/OpenIPC/configurator)
 
 [Demo on YouTube](https://www.youtube.com/watch?v=iJXXMcnOC7w)
 
@@ -20,6 +18,31 @@ Based off of MarioFPV's [OpenIPC Config](https://github.com/OpenIPC/configurator
 * **Multi-platform support**: run the application on Windows, macOS, and Linux platforms
 * **YAML-based configuration files**: easily edit and customize camera settings using YAML configuration files
 
+## App Configuration
+
+### Application Settings:
+
+* Update checking - Points to a GitHub release endpoint to check for the latest version
+* Logging configuration - Sets up console and file logging with debug-level output, storing logs in the user's Application Support directory with daily rotation
+* Device hostname mapping - Maps different device types (Camera, Radxa, NVR) to their expected hostnames for automatic device detection
+* Preset repositories - Configures multiple GitHub repositories containing FPV (First Person View) camera presets, including both official OpenIPC presets and custom user presets
+
+### App Configuration locations
+* Mac: "$HOME/Library/Application Support/OpenIPC_Config/appsettings.json"
+* Windows: %APPDATA%\Local\OpenIPC_Config\appsettings.json
+* Linux: ~/.config/appsettings.json
+
+
+## Logging
+
+https://github.com/serilog/serilog/wiki/Configuration-Basics
+
+### App Logs
+* Android: /data/user/0/org.openipc.OpenIPC/files/.config/openipc-configurator.log
+* Mac: "$HOME/Library/Application Support/OpenIPC_Config/Logs"
+* Windows: %APPDATA%\Local\OpenIPC_Config\Logs
+* Linux: ~/.config/openipc-configurator.log
+* 
 ## Known Issues
 * Device Hostname Error when you select connect
   * Edit appsettings.json located in one of the below locations:
@@ -59,16 +82,6 @@ Based off of MarioFPV's [OpenIPC Config](https://github.com/OpenIPC/configurator
 * `Services`: contains application-wide services and utilities, such as logging and SSH clients
 * `Styles`: contains styles and resources for the application, including themes and fonts
 * `README.md`: this file, containing information about the project and its features
-
-## Logging
-
-https://github.com/serilog/serilog/wiki/Configuration-Basics
-
-### App Logs
-  * Android: /data/user/0/org.openipc.OpenIPC/files/.config/openipc-configurator.log
-  * Mac: "$HOME/Library/Application Support/OpenIPC_Config/Logs"
-  * Windows: %APPDATA%\Local\OpenIPC_Config\Logs
-  * Linux: ~/.config/openipc-configurator.log
 
 
 Based on your folder structure, here’s an explanation of each project and what it likely targets:
