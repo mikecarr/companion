@@ -9,6 +9,7 @@ public class WfbYaml
     public const string WfbTxPower = "wireless.txpower";
     public const string WfbChannel = "wireless.channel";
     public const string WfbBandwidth = "wireless.width";
+    public const string WfbMlink = "wireless.mlink";
     
     public const string BroadcastMcsIndex = "broadcast.mcs_index"; 
     public const string BroadcastFecK = "broadcast.fec_k";
