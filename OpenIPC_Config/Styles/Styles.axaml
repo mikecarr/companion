@@ -199,6 +199,17 @@
         
     </Style>
     
+    <Style Selector="TextBox.WfbTextBox">
+        <Setter Property="FontSize" Value="14" />
+        <Setter Property="CornerRadius" Value="10" />
+        <Setter Property="BorderBrush" Value="#CCCCCC" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="10,5" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />        
+    </Style>
+    
+    
+    
     
     <Style Selector="Border.BoxShadow">
         

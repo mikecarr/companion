@@ -59,6 +59,7 @@ public partial class WfbTabViewModel : ViewModelBase
     [ObservableProperty] private ObservableCollection<int> _ldpc;
     [ObservableProperty] private ObservableCollection<int> _fecK;
     [ObservableProperty] private ObservableCollection<int> _fecN;
+    [ObservableProperty] private int _mlink = 0;
     [ObservableProperty] private int _maxPower58GHz = 60;
     [ObservableProperty] private int _maxPower24GHz = 60;
     #endregion
@@ -161,6 +162,14 @@ public partial class WfbTabViewModel : ViewModelBase
         Logger.Verbose($"SelectedBandwidthChanged updated to {value}");
         UpdateYamlConfig(WfbYaml.WfbBandwidth, value.ToString());
     }
+
+    partial void OnMlinkChanging(int value)
+    {
+        Logger.Verbose($"SelectedMlinkChanged updated to {value}");
+        UpdateYamlConfig(WfbYaml.WfbMlink, value.ToString());
+    }
+
+
     
     private void SubscribeToEvents()
     {
@@ -350,6 +359,10 @@ public partial class WfbTabViewModel : ViewModelBase
         if (_yamlConfig.TryGetValue(WfbYaml.BroadcastStbc, out var stbc))
         {
             SelectedStbc = TryParseInt(stbc, SelectedStbc);
+        }
+        if (_yamlConfig.TryGetValue(WfbYaml.WfbMlink, out var mlink))
+        {
+            Mlink = TryParseInt(mlink, SelectedStbc);
         }
     }
     private void ParseWfbConfContent()
