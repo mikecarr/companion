@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Threading.Tasks;
@@ -91,6 +92,21 @@ public class App : Application
             JObject existingSettings = JObject.Parse(json);
             
             bool hasChanges = false;
+            
+            var deviceHostnameMappingSection = existingSettings["DeviceHostnameMapping"] as JObject;
+            if (deviceHostnameMappingSection != null)
+            {
+                var cameraArray = deviceHostnameMappingSection["Camera"] as JArray;
+                if (cameraArray != null)
+                {
+                    string targetHostname = "openipc-gk7205v300";
+                    if (!cameraArray.Any(token => token.ToString() == targetHostname))
+                    {
+                        cameraArray.Add(targetHostname);
+                        hasChanges = true;
+                    }
+                }
+            }
             
             // Check and update Serilog sinks if needed
             var serilogSection = existingSettings["Serilog"] as JObject;
@@ -458,7 +474,7 @@ public class App : Application
             ),
             new JProperty("DeviceHostnameMapping",
                 new JObject(
-                    new JProperty("Camera", new JArray("openipc-ssc338q", "openipc-ssc30kq")),
+                    new JProperty("Camera", new JArray("openipc-ssc338q", "openipc-ssc30kq", "openipc-gk7205v300")),
                     new JProperty("Radxa", new JArray("radxa", "raspberrypi")),
                     new JProperty("NVR", new JArray("openipc-hi3536dv100"))
                 )
