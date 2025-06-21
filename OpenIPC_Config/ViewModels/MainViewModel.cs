@@ -341,14 +341,15 @@ public partial class MainViewModel : ViewModelBase
         
             try
             {
-                var reply = await _pingService.SendPingAsync(ipBeingPinged, (int)_pingTimeout.TotalMilliseconds);
+                // Updated to use PingResult instead of PingReply
+                var result = await _pingService.SendPingAsync(ipBeingPinged, (int)_pingTimeout.TotalMilliseconds);
             
                 // Only update the UI state if the IP we pinged is still the current IP
                 if (ipBeingPinged == IpAddress)
                 {
-                    if (reply.Status == IPStatus.Success)
+                    if (result.Success)
                     {
-                        _logger.Verbose("Ping successful - Setting IsConnected=true, IsWaiting=false");
+                        _logger.Verbose($"Ping successful via {result.Method} - Setting IsConnected=true, IsWaiting=false (RTT: {result.RoundtripTime}ms)");
                         
                         // used for status color changes
                         IsConnected = true;
@@ -359,7 +360,7 @@ public partial class MainViewModel : ViewModelBase
                     }
                     else
                     {
-                        _logger.Verbose("Ping failed - Setting IsConnected=false, IsWaiting=true");
+                        _logger.Verbose($"Ping failed via {result.Method} - Setting IsConnected=false, IsWaiting=true (Error: {result.ErrorMessage})");
                         
                         // used for status color changes
                         IsConnected = false;
