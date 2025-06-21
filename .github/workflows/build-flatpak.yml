@@ -277,56 +277,117 @@ jobs:
             rsvg-convert -w 256 -h 256 OpenIPC.svg -o OpenIPC.png
           fi
 
-      - name: Create ARM64 AppImage (alternative to Flatpak)
+      - name: Create ARM64 portable package (alternative to Flatpak)
         run: |
-          # Create AppDir structure
-          mkdir -p OpenIPC_Config.AppDir/usr/bin
-          mkdir -p OpenIPC_Config.AppDir/usr/share/applications
-          mkdir -p OpenIPC_Config.AppDir/usr/share/icons/hicolor/256x256/apps
+          # Create a simple portable package structure
+          mkdir -p OpenIPC_Config-linux-arm64/bin
+          mkdir -p OpenIPC_Config-linux-arm64/share/applications
+          mkdir -p OpenIPC_Config-linux-arm64/share/icons
           
           # Copy binary
-          cp -r build/OpenIPC_Config.Desktop/linux-arm64/* OpenIPC_Config.AppDir/usr/bin/
-          chmod +x OpenIPC_Config.AppDir/usr/bin/OpenIPC_Config.Desktop
+          cp -r build/OpenIPC_Config.Desktop/linux-arm64/* OpenIPC_Config-linux-arm64/bin/
+          chmod +x OpenIPC_Config-linux-arm64/bin/OpenIPC_Config.Desktop
           
           # Create desktop file
-          cat > OpenIPC_Config.AppDir/OpenIPC_Config.desktop << 'EOF'
+          cat > OpenIPC_Config-linux-arm64/share/applications/com.openipc.OpenIPC_Config.desktop << 'EOF'
           [Desktop Entry]
           Type=Application
           Name=OpenIPC Config
+          GenericName=Camera Configuration Tool
+          Comment=Configuration tool for OpenIPC cameras
           Exec=OpenIPC_Config.Desktop
-          Icon=OpenIPC_Config
+          Icon=com.openipc.OpenIPC_Config
           Categories=Network;Settings;
+          Keywords=camera;openipc;configuration;network;
+          StartupNotify=true
           EOF
-          
-          # Copy desktop file
-          cp OpenIPC_Config.AppDir/OpenIPC_Config.desktop OpenIPC_Config.AppDir/usr/share/applications/
           
           # Copy icon
-          cp OpenIPC.png OpenIPC_Config.AppDir/usr/share/icons/hicolor/256x256/apps/OpenIPC_Config.png
-          cp OpenIPC.png OpenIPC_Config.AppDir/OpenIPC_Config.png
+          cp OpenIPC.png OpenIPC_Config-linux-arm64/share/icons/
           
-          # Create AppRun script
-          cat > OpenIPC_Config.AppDir/AppRun << 'EOF'
+          # Create run script
+          cat > OpenIPC_Config-linux-arm64/run.sh << 'EOF'
           #!/bin/bash
-          cd "$(dirname "$0")"
-          exec ./usr/bin/OpenIPC_Config.Desktop "$@"
+          # OpenIPC Config Launcher
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          cd "$SCRIPT_DIR"
+          exec ./bin/OpenIPC_Config.Desktop "$@"
           EOF
-          chmod +x OpenIPC_Config.AppDir/AppRun
+          chmod +x OpenIPC_Config-linux-arm64/run.sh
           
-          # Download and use appimagetool
-          wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-          chmod +x appimagetool-x86_64.AppImage
+          # Create installation script
+          cat > OpenIPC_Config-linux-arm64/install.sh << 'EOF'
+          #!/bin/bash
+          # OpenIPC Config Installation Script
           
-          # Create AppImage (will be marked as aarch64 compatible)
-          ARCH=aarch64 ./appimagetool-x86_64.AppImage OpenIPC_Config.AppDir OpenIPC_Config-aarch64.AppImage
+          INSTALL_DIR="$HOME/.local/share/OpenIPC_Config"
+          DESKTOP_FILE="$HOME/.local/share/applications/com.openipc.OpenIPC_Config.desktop"
+          ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
           
-          echo "Created ARM64 AppImage as an alternative to Flatpak"
+          echo "Installing OpenIPC Config..."
+          
+          # Create directories
+          mkdir -p "$INSTALL_DIR"
+          mkdir -p "$(dirname "$DESKTOP_FILE")"
+          mkdir -p "$ICON_DIR"
+          
+          # Copy files
+          cp -r bin share "$INSTALL_DIR/"
+          cp run.sh "$INSTALL_DIR/"
+          
+          # Install desktop file
+          sed "s|Exec=OpenIPC_Config.Desktop|Exec=$INSTALL_DIR/run.sh|g" \
+              share/applications/com.openipc.OpenIPC_Config.desktop > "$DESKTOP_FILE"
+          
+          # Install icon
+          cp share/icons/OpenIPC.png "$ICON_DIR/com.openipc.OpenIPC_Config.png"
+          
+          # Update desktop database
+          if command -v update-desktop-database >/dev/null 2>&1; then
+              update-desktop-database "$HOME/.local/share/applications"
+          fi
+          
+          echo "✅ OpenIPC Config installed successfully!"
+          echo "You can run it from the applications menu or with: $INSTALL_DIR/run.sh"
+          EOF
+          chmod +x OpenIPC_Config-linux-arm64/install.sh
+          
+          # Create README
+          cat > OpenIPC_Config-linux-arm64/README.md << 'EOF'
+          # OpenIPC Config - ARM64 Linux Package
+          
+          ## Quick Start
+          ```bash
+          ./run.sh
+          ```
+          
+          ## Installation
+          ```bash
+          ./install.sh
+          ```
+          This will install the application to `~/.local/share/OpenIPC_Config` and add a desktop entry.
+          
+          ## Manual Installation
+          1. Extract this package to your preferred location
+          2. Run `./run.sh` to start the application
+          3. Optionally, create a symlink: `ln -s $(pwd)/run.sh ~/.local/bin/openipc-config`
+          
+          ## Requirements
+          - Linux ARM64 system
+          - .NET runtime dependencies (usually pre-installed)
+          EOF
+          
+          # Create tar.gz package
+          tar -czf OpenIPC_Config-linux-arm64.tar.gz OpenIPC_Config-linux-arm64/
+          
+          echo "✅ ARM64 portable package created successfully"
+          ls -la OpenIPC_Config-linux-arm64.tar.gz
 
-      - name: Upload ARM64 AppImage
+      - name: Upload ARM64 package
         uses: actions/upload-artifact@v4
         with:
-          name: appimage-aarch64
-          path: OpenIPC_Config-aarch64.AppImage
+          name: package-aarch64
+          path: OpenIPC_Config-linux-arm64.tar.gz
 
   create-release:
     if: startsWith(github.ref, 'refs/tags/')
@@ -343,17 +404,17 @@ jobs:
           pattern: flatpak-*
           merge-multiple: true
 
-      - name: Download ARM64 AppImage
+      - name: Download ARM64 package
         uses: actions/download-artifact@v4
         with:
-          name: appimage-aarch64
+          name: package-aarch64
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             *.flatpak
-            *.AppImage
+            *.tar.gz
           body: |
             ## OpenIPC Config ${{ github.ref_name }}
             
@@ -366,11 +427,17 @@ jobs:
             flatpak run com.openipc.OpenIPC_Config
             ```
             
-            **AppImage (For ARM64/aarch64):**
-            Download `OpenIPC_Config-aarch64.AppImage` and run with:
+            **Portable Package (For ARM64/aarch64):**
+            Download `OpenIPC_Config-linux-arm64.tar.gz`, extract and run:
             ```bash
-            chmod +x OpenIPC_Config-aarch64.AppImage
-            ./OpenIPC_Config-aarch64.AppImage
+            tar -xzf OpenIPC_Config-linux-arm64.tar.gz
+            cd OpenIPC_Config-linux-arm64
+            ./run.sh
+            ```
+            
+            Or install system-wide:
+            ```bash
+            ./install.sh
             ```
             
             ### Changes
