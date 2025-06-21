@@ -1,11 +1,11 @@
 name: Build and Package Flatpak
 
 on:
-#  push:
-#    branches: [ main, develop ]
-#    tags: [ 'v*' ]
-#  pull_request:
-#    branches: [ main ]
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -116,6 +116,35 @@ jobs:
             rsvg-convert -w 256 -h 256 OpenIPC.svg -o OpenIPC.png
           fi
 
+      - name: Prepare configuration files
+        run: |
+          # Check if config files exist in the source and copy them
+          if [ -d "OpenIPC_Config/config" ]; then
+            echo "Found config directory in source, copying..."
+            cp -r OpenIPC_Config/config ./
+          elif [ -d "config" ]; then
+            echo "Found config directory in root, using it..."
+          else
+            echo "No config directory found, will create default in Flatpak build"
+            mkdir -p config/OpenIPC_Config
+            cat > config/OpenIPC_Config/appsettings.json << 'EOF'
+          {
+            "Logging": {
+              "LogLevel": {
+                "Default": "Information",
+                "Microsoft.AspNetCore": "Warning"
+              }
+            },
+            "AllowedHosts": "*",
+            "AppSettings": {
+              "DefaultTheme": "Dark",
+              "AutoSave": true,
+              "CheckForUpdates": true
+            }
+          }
+          EOF
+          fi
+
       - name: Create Flatpak manifest
         run: |
           cat > ${{ env.APP_ID }}.yml << 'EOF'
@@ -129,11 +158,14 @@ jobs:
           finish-args:
             - --share=network
             - --filesystem=home
+            - --filesystem=xdg-config:rw
+            - --filesystem=xdg-data:rw
             - --socket=x11
             - --socket=wayland
             - --socket=pulseaudio
             - --device=all
             - --talk-name=org.freedesktop.Notifications
+            - --env=XDG_DATA_DIRS=/app/share:/usr/share:/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share
           
           modules:
             - name: openipc-config
@@ -142,6 +174,27 @@ jobs:
                 - mkdir -p /app/bin
                 - cp -r ${{ matrix.dotnet-arch }}/* /app/bin/
                 - chmod +x /app/bin/OpenIPC_Config.Desktop
+                # Copy config files if they exist
+                - |
+                  if [ -d "config" ]; then
+                    cp -r config /app/bin/
+                  fi
+                # Create default config if it doesn't exist
+                - mkdir -p /app/bin/config/OpenIPC_Config
+                - |
+                  if [ ! -f "/app/bin/config/OpenIPC_Config/appsettings.json" ]; then
+                    cat > /app/bin/config/OpenIPC_Config/appsettings.json << 'CONFIG_EOF'
+                  {
+                    "Logging": {
+                      "LogLevel": {
+                        "Default": "Information",
+                        "Microsoft.AspNetCore": "Warning"
+                      }
+                    },
+                    "AllowedHosts": "*"
+                  }
+                  CONFIG_EOF
+                  fi
                 - mkdir -p /app/share/applications
                 - cp com.openipc.OpenIPC_Config.desktop /app/share/applications/
                 - mkdir -p /app/share/icons/hicolor/256x256/apps
@@ -152,6 +205,9 @@ jobs:
               sources:
                 - type: dir
                   path: build/OpenIPC_Config.Desktop/
+                - type: dir
+                  path: config/
+                  dest: config
                 - type: file
                   path: com.openipc.OpenIPC_Config.desktop
                 - type: file
