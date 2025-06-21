@@ -125,13 +125,6 @@ public class App : Application
                         }
                     }
                 }
-                
-                // if (usingArray != null && usingArray.Contains("Serilog.Sinks.RollingFile"))
-                // {
-                //     usingArray.Replace(new JArray("Serilog.Sinks.Console", "Serilog.Sinks.File"));
-                //     hasChanges = true;
-                //     Log.Information("Updated Serilog sinks configuration");
-                // }
             }
 
             // Change due to rename
@@ -142,7 +135,7 @@ public class App : Application
                 );
                 
                 hasChanges = true;
-                Log.Information("Added Presets section to existing settings");
+                Log.Information("Updated UpdateChecker section");
             }
             // Check if Presets section exists, add if missing
             if (existingSettings["Presets"] == null)
@@ -162,8 +155,6 @@ public class App : Application
                 hasChanges = true;
                 Log.Information("Added Presets section to existing settings");
             }
-            
-            // Add more upgrade steps for other sections as needed
             
             // Save changes if needed
             if (hasChanges)
@@ -265,39 +256,116 @@ public class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
+    /// <summary>
+    /// Gets the appropriate configuration directory path for the current platform and environment
+    /// </summary>
     private string GetConfigPath()
     {
         var appName = Assembly.GetExecutingAssembly().GetName().Name;
-        string configPath;
+        string configDirectory;
 
-        if (OperatingSystem.IsAndroid() || OperatingSystem.IsIOS() || OperatingSystem.IsMacOS())
+        if (OperatingSystem.IsAndroid() || OperatingSystem.IsIOS())
         {
-            var configDirectory =
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), appName);
-            if (!Directory.Exists(configDirectory))
-                Directory.CreateDirectory(configDirectory);
-
-            configPath = Path.Combine(configDirectory, "appsettings.json");
+            configDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), appName);
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            configDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), appName);
         }
         else if (OperatingSystem.IsWindows())
         {
-            var configDirectory =
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), appName);
-            if (!Directory.Exists(configDirectory))
-                Directory.CreateDirectory(configDirectory);
-
-            configPath = Path.Combine(configDirectory, "appsettings.json");
+            configDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), appName);
         }
-        else // Assume Linux
+        else // Linux
         {
-            var configDirectory = Path.Combine($"./config/{appName}");
-            if (!Directory.Exists(configDirectory))
-                Directory.CreateDirectory(configDirectory);
-
-            configPath = Path.Combine(configDirectory, "appsettings.json");
+            configDirectory = GetLinuxConfigDirectory(appName);
         }
 
-        return configPath;
+        // Ensure directory exists
+        if (!Directory.Exists(configDirectory))
+            Directory.CreateDirectory(configDirectory);
+
+        return Path.Combine(configDirectory, "appsettings.json");
+    }
+
+    /// <summary>
+    /// Gets the appropriate configuration directory for Linux, handling Flatpak sandboxing
+    /// </summary>
+    private string GetLinuxConfigDirectory(string appName)
+    {
+        // Check if we're running in Flatpak
+        var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+        var xdgConfigHome = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME");
+        
+        // Debug output for troubleshooting
+        Console.WriteLine($"XDG_DATA_HOME: {xdgDataHome}");
+        Console.WriteLine($"XDG_CONFIG_HOME: {xdgConfigHome}");
+        Console.WriteLine($"Current working directory: {Directory.GetCurrentDirectory()}");
+        
+        if (!string.IsNullOrEmpty(xdgDataHome))
+        {
+            // Running in Flatpak - use the sandboxed data directory for config
+            // This maps to ~/.var/app/com.openipc.OpenIPC_Config/data/OpenIPC_Config
+            return Path.Combine(xdgDataHome, appName);
+        }
+        else if (!string.IsNullOrEmpty(xdgConfigHome))
+        {
+            // Standard Linux with XDG_CONFIG_HOME set
+            return Path.Combine(xdgConfigHome, appName);
+        }
+        else
+        {
+            // Fallback: check if we can write to current directory (traditional install)
+            var currentDirConfig = Path.Combine(Directory.GetCurrentDirectory(), "config", appName);
+            try
+            {
+                // Test if we can write to this location
+                var testFile = Path.Combine(currentDirConfig, "test_write.tmp");
+                Directory.CreateDirectory(currentDirConfig);
+                File.WriteAllText(testFile, "test");
+                File.Delete(testFile);
+                return currentDirConfig;
+            }
+            catch
+            {
+                // Can't write to current directory, use XDG standard location
+                var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                return Path.Combine(homeDir, ".config", appName);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the appropriate data directory for storing logs and other data files
+    /// </summary>
+    public static string GetDataDirectory()
+    {
+        var appName = Assembly.GetExecutingAssembly().GetName().Name;
+        
+        if (OperatingSystem.IsWindows())
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), appName);
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", appName);
+        }
+        else // Linux
+        {
+            // Check if we're running in Flatpak
+            var xdgDataHome = Environment.GetEnvironmentVariable("XDG_DATA_HOME");
+            if (!string.IsNullOrEmpty(xdgDataHome))
+            {
+                // Running in Flatpak - use the sandboxed data directory
+                return Path.Combine(xdgDataHome, appName);
+            }
+            else
+            {
+                // Standard Linux - use XDG data directory
+                var homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                return Path.Combine(homeDir, ".local", "share", appName);
+            }
+        }
     }
 
     public virtual async Task ShowUpdateDialogAsync(string releaseNotes, string downloadUrl, string newVersion)
@@ -327,8 +395,8 @@ public class App : Application
         // Set up the necessary dependencies
         var httpClient = new HttpClient();
 
-        var configPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            Assembly.GetExecutingAssembly().GetName().Name, "appsettings.json");
+        // Use the same config path logic as the main application
+        var configPath = GetConfigPath();
 
         Console.WriteLine($"Loading configuration from: {configPath}");
 
@@ -412,7 +480,11 @@ public class App : Application
 
     private JObject createDefaultAppSettings()
     {
-        string logPath = Path.Combine(OpenIPC.AppDataConfigDirectory, "Logs", "configurator.log");
+        // Use the new data directory method for logs
+        string logPath = Path.Combine(GetDataDirectory(), "Logs", "configurator.log");
+
+        // Ensure the log directory exists
+        Directory.CreateDirectory(Path.GetDirectoryName(logPath));
 
         // Create default settings
         var defaultSettings = new JObject(
@@ -444,7 +516,7 @@ public class App : Application
                         new JArray(
                             new JObject(
                                 new JProperty("Name", "Console"),
-                                new JProperty("Args",  // Add Args here for Console
+                                new JProperty("Args",
                                     new JObject(
                                         new JProperty("outputTemplate", "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
                                     )
@@ -455,10 +527,8 @@ public class App : Application
                                 new JProperty("Args",
                                     new JObject(
                                         new JProperty("path", logPath),
-                                        new JProperty("rollingInterval",
-                                            "Day"),
-                                        new JProperty("retainedFileCountLimit",
-                                            "5"),
+                                        new JProperty("rollingInterval", "Day"),
+                                        new JProperty("retainedFileCountLimit", "5"),
                                         new JProperty("outputTemplate", "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
                                     )
                                 )
