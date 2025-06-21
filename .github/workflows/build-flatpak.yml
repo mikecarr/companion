@@ -1,11 +1,11 @@
 name: Build and Package Flatpak
 
 on:
-  push:
-    branches: [ main, develop ]
-    tags: [ 'v*' ]
-  pull_request:
-    branches: [ main ]
+#  push:
+#    branches: [ main, develop ]
+#    tags: [ 'v*' ]
+#  pull_request:
+#    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [linux-x64, linux-arm64]
+        arch: [linux-x64]
     
     steps:
       - name: Checkout code
@@ -166,6 +166,16 @@ jobs:
             - --device=all
             - --talk-name=org.freedesktop.Notifications
             - --env=XDG_DATA_DIRS=/app/share:/usr/share:/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share
+            # Network and system access for ping functionality
+            - --share=network
+            - --system-talk-name=org.freedesktop.NetworkManager
+            - --system-talk-name=org.freedesktop.resolve1
+            # Allow access to network tools and raw sockets (for ping)
+            - --filesystem=/usr/bin/ping:ro
+            - --filesystem=/bin/ping:ro
+            - --allow=devel
+            # Alternative: allow running host commands
+            - --talk-name=org.freedesktop.Flatpak
           
           modules:
             - name: openipc-config
