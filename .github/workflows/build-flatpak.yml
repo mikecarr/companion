@@ -1,11 +1,11 @@
 name: Build and Package Flatpak
 
 on:
-#  push:
-#    branches: [ main, develop ]
-#    tags: [ 'v*' ]
-#  pull_request:
-#    branches: [ main ]
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 concurrency:
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [linux-x64]
+        arch: [linux-x64, linux-arm64]
     
     steps:
       - name: Checkout code
@@ -66,14 +66,6 @@ jobs:
   build-flatpak:
     needs: build-dotnet
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - flatpak-arch: x86_64
-            dotnet-arch: linux-x64
-            cross-compile: false
-          # Note: aarch64 Flatpak cross-compilation is complex in GitHub Actions
-          # The aarch64 .NET binary will be packaged in a separate job if needed
 
     steps:
       - name: Checkout code
@@ -82,8 +74,8 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: dotnet-build-${{ matrix.dotnet-arch }}
-          path: build/OpenIPC_Config.Desktop/${{ matrix.dotnet-arch }}/
+          name: dotnet-build-linux-x64
+          path: build/OpenIPC_Config.Desktop/linux-x64/
 
       - name: Install Flatpak and dependencies
         run: |
@@ -166,23 +158,21 @@ jobs:
             - --device=all
             - --talk-name=org.freedesktop.Notifications
             - --env=XDG_DATA_DIRS=/app/share:/usr/share:/var/lib/flatpak/exports/share:$HOME/.local/share/flatpak/exports/share
-            # Network and system access for ping functionality
+            # Network access for ping and camera connectivity
             - --share=network
             - --system-talk-name=org.freedesktop.NetworkManager
             - --system-talk-name=org.freedesktop.resolve1
-            # Allow access to network tools and raw sockets (for ping)
-            - --filesystem=/usr/bin/ping:ro
-            - --filesystem=/bin/ping:ro
-            - --allow=devel
-            # Alternative: allow running host commands
+            # Allow spawning host processes for network tools
             - --talk-name=org.freedesktop.Flatpak
+            # Allow development/debugging tools (needed for some network operations)
+            - --allow=devel
           
           modules:
             - name: openipc-config
               buildsystem: simple
               build-commands:
                 - mkdir -p /app/bin
-                - cp -r ${{ matrix.dotnet-arch }}/* /app/bin/
+                - cp -r linux-x64/* /app/bin/
                 - chmod +x /app/bin/OpenIPC_Config.Desktop
                 # Copy config files if they exist
                 - |
@@ -201,7 +191,28 @@ jobs:
                         "Microsoft.AspNetCore": "Warning"
                       }
                     },
-                    "AllowedHosts": "*"
+                    "AllowedHosts": "*",
+                    "Serilog": {
+                      "Using": ["Serilog.Sinks.Console", "Serilog.Sinks.File"],
+                      "MinimumLevel": "Information",
+                      "WriteTo": [
+                        {
+                          "Name": "Console",
+                          "Args": {
+                            "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"
+                          }
+                        },
+                        {
+                          "Name": "File",
+                          "Args": {
+                            "path": "~/.var/app/com.openipc.OpenIPC_Config/data/OpenIPC_Config/Logs/configurator.log",
+                            "rollingInterval": "Day",
+                            "retainedFileCountLimit": "5",
+                            "outputTemplate": "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}"
+                          }
+                        }
+                      ]
+                    }
                   }
                   CONFIG_EOF
                   fi
@@ -287,223 +298,48 @@ jobs:
           mkdir -p repo
           
           # Build the Flatpak for x86_64
-          flatpak-builder --arch=${{ matrix.flatpak-arch }} --force-clean --repo=repo \
+          flatpak-builder --arch=x86_64 --force-clean --repo=repo \
             flatpak-build ${{ env.APP_ID }}.yml
           
           # Create bundle
-          flatpak build-bundle repo ${{ env.APP_ID }}-${{ matrix.flatpak-arch }}.flatpak \
-            ${{ env.APP_ID }} --arch=${{ matrix.flatpak-arch }}
+          flatpak build-bundle repo ${{ env.APP_ID }}-x86_64.flatpak \
+            ${{ env.APP_ID }} --arch=x86_64
 
       - name: Upload Flatpak bundle
         uses: actions/upload-artifact@v4
         with:
-          name: flatpak-${{ matrix.flatpak-arch }}
-          path: ${{ env.APP_ID }}-${{ matrix.flatpak-arch }}.flatpak
-
-  # Separate job for ARM64 using a simpler approach
-  build-flatpak-arm64:
-    needs: build-dotnet
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download ARM64 build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dotnet-build-linux-arm64
-          path: build/OpenIPC_Config.Desktop/linux-arm64/
-
-      - name: Install dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y imagemagick librsvg2-bin
-
-      - name: Create application icon
-        run: |
-          # Check if icon exists in the repository
-          if [ -f "OpenIPC_Config/Assets/Icons/OpenIPC.png" ]; then
-            cp "OpenIPC_Config/Assets/Icons/OpenIPC.png" ./OpenIPC.png
-          elif [ -f "OpenIPC_Config/Assets/Icons/OpenIPC.icns" ]; then
-            # Convert icns to png
-            convert "OpenIPC_Config/Assets/Icons/OpenIPC.icns[0]" -resize 256x256 OpenIPC.png
-          else
-            # Create a placeholder icon
-            cat > OpenIPC.svg << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-            <rect width="256" height="256" fill="#4a90e2" rx="32"/>
-            <circle cx="128" cy="100" r="40" fill="white" stroke="#333" stroke-width="4"/>
-            <rect x="88" y="120" width="80" height="60" fill="white" stroke="#333" stroke-width="4" rx="8"/>
-            <text x="128" y="200" text-anchor="middle" fill="white" font-family="sans-serif" font-size="16" font-weight="bold">OpenIPC</text>
-            <text x="128" y="220" text-anchor="middle" fill="white" font-family="sans-serif" font-size="12">Config</text>
-          </svg>
-          EOF
-            rsvg-convert -w 256 -h 256 OpenIPC.svg -o OpenIPC.png
-          fi
-
-      - name: Create ARM64 portable package (alternative to Flatpak)
-        run: |
-          # Create a simple portable package structure
-          mkdir -p OpenIPC_Config-linux-arm64/bin
-          mkdir -p OpenIPC_Config-linux-arm64/share/applications
-          mkdir -p OpenIPC_Config-linux-arm64/share/icons
-          
-          # Copy binary
-          cp -r build/OpenIPC_Config.Desktop/linux-arm64/* OpenIPC_Config-linux-arm64/bin/
-          chmod +x OpenIPC_Config-linux-arm64/bin/OpenIPC_Config.Desktop
-          
-          # Create desktop file
-          cat > OpenIPC_Config-linux-arm64/share/applications/com.openipc.OpenIPC_Config.desktop << 'EOF'
-          [Desktop Entry]
-          Type=Application
-          Name=OpenIPC Config
-          GenericName=Camera Configuration Tool
-          Comment=Configuration tool for OpenIPC cameras
-          Exec=OpenIPC_Config.Desktop
-          Icon=com.openipc.OpenIPC_Config
-          Categories=Network;Settings;
-          Keywords=camera;openipc;configuration;network;
-          StartupNotify=true
-          EOF
-          
-          # Copy icon
-          cp OpenIPC.png OpenIPC_Config-linux-arm64/share/icons/
-          
-          # Create run script
-          cat > OpenIPC_Config-linux-arm64/run.sh << 'EOF'
-          #!/bin/bash
-          # OpenIPC Config Launcher
-          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-          cd "$SCRIPT_DIR"
-          exec ./bin/OpenIPC_Config.Desktop "$@"
-          EOF
-          chmod +x OpenIPC_Config-linux-arm64/run.sh
-          
-          # Create installation script
-          cat > OpenIPC_Config-linux-arm64/install.sh << 'EOF'
-          #!/bin/bash
-          # OpenIPC Config Installation Script
-          
-          INSTALL_DIR="$HOME/.local/share/OpenIPC_Config"
-          DESKTOP_FILE="$HOME/.local/share/applications/com.openipc.OpenIPC_Config.desktop"
-          ICON_DIR="$HOME/.local/share/icons/hicolor/256x256/apps"
-          
-          echo "Installing OpenIPC Config..."
-          
-          # Create directories
-          mkdir -p "$INSTALL_DIR"
-          mkdir -p "$(dirname "$DESKTOP_FILE")"
-          mkdir -p "$ICON_DIR"
-          
-          # Copy files
-          cp -r bin share "$INSTALL_DIR/"
-          cp run.sh "$INSTALL_DIR/"
-          
-          # Install desktop file
-          sed "s|Exec=OpenIPC_Config.Desktop|Exec=$INSTALL_DIR/run.sh|g" \
-              share/applications/com.openipc.OpenIPC_Config.desktop > "$DESKTOP_FILE"
-          
-          # Install icon
-          cp share/icons/OpenIPC.png "$ICON_DIR/com.openipc.OpenIPC_Config.png"
-          
-          # Update desktop database
-          if command -v update-desktop-database >/dev/null 2>&1; then
-              update-desktop-database "$HOME/.local/share/applications"
-          fi
-          
-          echo "✅ OpenIPC Config installed successfully!"
-          echo "You can run it from the applications menu or with: $INSTALL_DIR/run.sh"
-          EOF
-          chmod +x OpenIPC_Config-linux-arm64/install.sh
-          
-          # Create README
-          cat > OpenIPC_Config-linux-arm64/README.md << 'EOF'
-          # OpenIPC Config - ARM64 Linux Package
-          
-          ## Quick Start
-          ```bash
-          ./run.sh
-          ```
-          
-          ## Installation
-          ```bash
-          ./install.sh
-          ```
-          This will install the application to `~/.local/share/OpenIPC_Config` and add a desktop entry.
-          
-          ## Manual Installation
-          1. Extract this package to your preferred location
-          2. Run `./run.sh` to start the application
-          3. Optionally, create a symlink: `ln -s $(pwd)/run.sh ~/.local/bin/openipc-config`
-          
-          ## Requirements
-          - Linux ARM64 system
-          - .NET runtime dependencies (usually pre-installed)
-          EOF
-          
-          # Create tar.gz package
-          tar -czf OpenIPC_Config-linux-arm64.tar.gz OpenIPC_Config-linux-arm64/
-          
-          echo "✅ ARM64 portable package created successfully"
-          ls -la OpenIPC_Config-linux-arm64.tar.gz
-
-      - name: Upload ARM64 package
-        uses: actions/upload-artifact@v4
-        with:
-          name: package-aarch64
-          path: OpenIPC_Config-linux-arm64.tar.gz
+          name: flatpak-x86_64
+          path: ${{ env.APP_ID }}-x86_64.flatpak
 
   create-release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-flatpak, build-flatpak-arm64]
+    needs: build-flatpak
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download Flatpak artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: flatpak-*
-          merge-multiple: true
-
-      - name: Download ARM64 package
-        uses: actions/download-artifact@v4
-        with:
-          name: package-aarch64
+          name: flatpak-x86_64
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             *.flatpak
-            *.tar.gz
           body: |
             ## OpenIPC Config ${{ github.ref_name }}
             
             ### Installation
             
-            **Flatpak (Recommended for x86_64):**
+            **Flatpak (Linux x86_64):**
             Download `com.openipc.OpenIPC_Config-x86_64.flatpak` and install with:
             ```bash
             flatpak install --user --bundle com.openipc.OpenIPC_Config-x86_64.flatpak
             flatpak run com.openipc.OpenIPC_Config
-            ```
-            
-            **Portable Package (For ARM64/aarch64):**
-            Download `OpenIPC_Config-linux-arm64.tar.gz`, extract and run:
-            ```bash
-            tar -xzf OpenIPC_Config-linux-arm64.tar.gz
-            cd OpenIPC_Config-linux-arm64
-            ./run.sh
-            ```
-            
-            Or install system-wide:
-            ```bash
-            ./install.sh
             ```
             
             ### Changes
