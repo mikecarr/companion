@@ -16,8 +16,10 @@ public class PingService : IDisposable
     private static PingService _instance;
     private static readonly object _lock = new object();
     
-    private readonly SemaphoreSlim _pingSemaphore = new SemaphoreSlim(5, 5); // Allow multiple concurrent pings
-    private readonly TimeSpan _defaultTimeout = TimeSpan.FromMilliseconds(3000); // Increased for better reliability
+    // Separate semaphores for different types of operations
+    private readonly SemaphoreSlim _regularPingSemaphore = new SemaphoreSlim(20, 20); // Higher limit for regular pings
+    private readonly SemaphoreSlim _scanPingSemaphore = new SemaphoreSlim(10, 10); // Separate pool for scans
+    private readonly TimeSpan _defaultTimeout = TimeSpan.FromMilliseconds(3000);
     private readonly ILogger _logger;
     private readonly ConcurrentDictionary<string, DateTime> _lastPingTimes = new ConcurrentDictionary<string, DateTime>();
 
@@ -43,14 +45,20 @@ public class PingService : IDisposable
         return _instance;
     }
 
-    // Ping method with default timeout
+    // Regular ping method (for device monitoring)
     public async Task<PingResult> SendPingAsync(string ipAddress)
     {
-        return await SendPingAsync(ipAddress, (int)_defaultTimeout.TotalMilliseconds);
+        return await SendPingAsync(ipAddress, (int)_defaultTimeout.TotalMilliseconds, PingType.Regular);
     }
 
-    // Enhanced ping method with multiple fallback strategies for Flatpak compatibility
-    public async Task<PingResult> SendPingAsync(string ipAddress, int timeout)
+    // Overload for scan operations
+    public async Task<PingResult> SendScanPingAsync(string ipAddress, int timeout = 2000)
+    {
+        return await SendPingAsync(ipAddress, timeout, PingType.Scan);
+    }
+
+    // Enhanced ping method with operation type
+    private async Task<PingResult> SendPingAsync(string ipAddress, int timeout, PingType pingType)
     {
         if (string.IsNullOrWhiteSpace(ipAddress))
         {
@@ -58,70 +66,121 @@ public class PingService : IDisposable
             return new PingResult { Success = false, ErrorMessage = "Invalid IP address" };
         }
 
-        // Throttle ping requests to same IP
-        if (ShouldThrottlePing(ipAddress))
+        // Choose appropriate semaphore based on operation type
+        var semaphore = pingType == PingType.Scan ? _scanPingSemaphore : _regularPingSemaphore;
+        var semaphoreTimeout = pingType == PingType.Scan ? timeout + 1000 : timeout + 5000; // More time for regular pings
+
+        // Throttle ping requests to same IP for regular pings only
+        if (pingType == PingType.Regular && ShouldThrottlePing(ipAddress))
         {
             _logger.Verbose($"Throttling ping request to {ipAddress}");
             return new PingResult { Success = false, ErrorMessage = "Request throttled" };
         }
 
-        _logger.Verbose($"Attempting to ping IP: {ipAddress} with timeout: {timeout}ms");
+        _logger.Verbose($"Attempting {pingType} ping to {ipAddress} with timeout: {timeout}ms");
         
-        if (await _pingSemaphore.WaitAsync(timeout))
+        if (await semaphore.WaitAsync(semaphoreTimeout))
         {
             try
             {
-                // Update last ping time for throttling
-                _lastPingTimes.AddOrUpdate(ipAddress, DateTime.UtcNow, (key, oldValue) => DateTime.UtcNow);
-
-                // Strategy 1: Try .NET Ping (works with --allow=devel in Flatpak)
-                var pingResult = await TryNetworkPing(ipAddress, timeout);
-                if (pingResult.Success)
+                // Update last ping time for throttling (regular pings only)
+                if (pingType == PingType.Regular)
                 {
-                    _logger.Verbose($"Ping successful via .NET: {ipAddress}, RTT: {pingResult.RoundtripTime}ms");
-                    return pingResult;
+                    _lastPingTimes.AddOrUpdate(ipAddress, DateTime.UtcNow, (key, oldValue) => DateTime.UtcNow);
                 }
 
-                // Strategy 2: Try flatpak-spawn to escape sandbox
-                var flatpakResult = await TryFlatpakSpawnPing(ipAddress, timeout);
-                if (flatpakResult.Success)
+                // For scan operations, use faster methods first
+                if (pingType == PingType.Scan)
                 {
-                    _logger.Verbose($"Ping successful via flatpak-spawn: {ipAddress}");
-                    return flatpakResult;
+                    return await ExecuteScanPing(ipAddress, timeout);
                 }
-
-                // Strategy 3: TCP connectivity test (most reliable for network devices)
-                var tcpResult = await TryTcpConnectivity(ipAddress, timeout);
-                if (tcpResult.Success)
+                else
                 {
-                    _logger.Verbose($"Connectivity confirmed via TCP: {ipAddress}");
-                    return tcpResult;
+                    return await ExecuteRegularPing(ipAddress, timeout);
                 }
-
-                // All strategies failed
-                _logger.Verbose($"All ping strategies failed for {ipAddress}");
-                return new PingResult 
-                { 
-                    Success = false, 
-                    ErrorMessage = "All ping methods failed",
-                    IPAddress = ipAddress 
-                };
             }
             finally
             {
-                _pingSemaphore.Release();
+                semaphore.Release();
             }
         }
         else
         {
-            _logger.Warning("Timeout waiting to acquire ping semaphore for {IpAddress}", ipAddress);
+            _logger.Warning("Timeout waiting to acquire ping semaphore for {IpAddress} ({PingType})", ipAddress, pingType);
             return new PingResult 
             { 
                 Success = false, 
-                ErrorMessage = "Ping operation timeout due to concurrent requests",
+                ErrorMessage = $"Ping operation timeout due to concurrent requests ({pingType})",
                 IPAddress = ipAddress 
             };
         }
+    }
+
+    // Fast ping for scan operations
+    private async Task<PingResult> ExecuteScanPing(string ipAddress, int timeout)
+    {
+        // For scans, prioritize speed - try TCP first, then .NET ping if needed
+        var tcpResult = await TryTcpConnectivity(ipAddress, Math.Min(timeout, 1500));
+        if (tcpResult.Success)
+        {
+            return tcpResult;
+        }
+
+        // Only try .NET ping if TCP failed and we have time left
+        if (timeout > 1500)
+        {
+            var pingResult = await TryNetworkPing(ipAddress, timeout - 1500);
+            if (pingResult.Success)
+            {
+                return pingResult;
+            }
+        }
+
+        return new PingResult 
+        { 
+            Success = false, 
+            ErrorMessage = "All scan methods failed",
+            IPAddress = ipAddress,
+            Method = "SCAN_FAILED" 
+        };
+    }
+
+    // Comprehensive ping for regular monitoring
+    private async Task<PingResult> ExecuteRegularPing(string ipAddress, int timeout)
+    {
+        // Strategy 1: Try .NET Ping (works with --allow=devel in Flatpak)
+        var pingResult = await TryNetworkPing(ipAddress, timeout);
+        if (pingResult.Success)
+        {
+            _logger.Verbose($"Ping successful via .NET: {ipAddress}, RTT: {pingResult.RoundtripTime}ms");
+            return pingResult;
+        }
+
+        // Strategy 2: Try flatpak-spawn to escape sandbox
+        var flatpakResult = await TryFlatpakSpawnPing(ipAddress, timeout);
+        if (flatpakResult.Success)
+        {
+            _logger.Verbose($"Ping successful via flatpak-spawn: {ipAddress}");
+            return flatpakResult;
+        }
+
+        // Strategy 3: TCP connectivity test (most reliable for network devices)
+        var tcpResult = await TryTcpConnectivity(ipAddress, timeout);
+        if (tcpResult.Success)
+        {
+            _logger.Verbose($"Connectivity confirmed via TCP: {ipAddress}");
+            return tcpResult;
+        }
+
+        // All strategies failed
+        _logger.Verbose($"All ping strategies failed for {ipAddress}");
+        return new PingResult 
+        { 
+            Success = false, 
+            ErrorMessage = "All ping methods failed",
+            IPAddress = ipAddress,
+            Method = "ALL_FAILED" 
+        };
     }
 
     // Strategy 1: Traditional .NET Ping
@@ -219,6 +278,7 @@ public class PingService : IDisposable
     {
         // Common ports for network devices and cameras
         var portsToTest = new[] { 80, 443, 22, 23, 554, 8080, 8554 };
+        var portTimeout = Math.Min(timeout / portsToTest.Length, 500); // Max 500ms per port
         
         foreach (var port in portsToTest)
         {
@@ -228,7 +288,7 @@ public class PingService : IDisposable
                 var startTime = DateTime.UtcNow;
                 
                 var connectTask = client.ConnectAsync(ipAddress, port);
-                var timeoutTask = Task.Delay(Math.Min(timeout, 2000)); // Max 2 seconds per port
+                var timeoutTask = Task.Delay(portTimeout);
                 
                 var completedTask = await Task.WhenAny(connectTask, timeoutTask);
                 var elapsed = (DateTime.UtcNow - startTime).TotalMilliseconds;
@@ -278,40 +338,20 @@ public class PingService : IDisposable
         }
     }
 
-    // Throttling to prevent spam
+    // Throttling to prevent spam (only for regular pings)
     private bool ShouldThrottlePing(string ipAddress)
     {
         if (_lastPingTimes.TryGetValue(ipAddress, out var lastPing))
         {
-            return DateTime.UtcNow - lastPing < TimeSpan.FromMilliseconds(100); // 100ms minimum between pings
+            return DateTime.UtcNow - lastPing < TimeSpan.FromMilliseconds(500); // 500ms minimum between regular pings
         }
         return false;
     }
 
-    // Cleanup old throttling entries
-    private void CleanupThrottlingCache()
+    // Bulk ping operation for scans
+    public async Task<Dictionary<string, PingResult>> SendBulkScanAsync(IEnumerable<string> ipAddresses, int timeout = 2000)
     {
-        var cutoff = DateTime.UtcNow.AddMinutes(-5);
-        var keysToRemove = new List<string>();
-        
-        foreach (var kvp in _lastPingTimes)
-        {
-            if (kvp.Value < cutoff)
-            {
-                keysToRemove.Add(kvp.Key);
-            }
-        }
-        
-        foreach (var key in keysToRemove)
-        {
-            _lastPingTimes.TryRemove(key, out _);
-        }
-    }
-
-    // Bulk ping operation
-    public async Task<Dictionary<string, PingResult>> SendBulkPingAsync(IEnumerable<string> ipAddresses, int timeout)
-    {
-        var tasks = ipAddresses.Select(async ip => new { IP = ip, Result = await SendPingAsync(ip, timeout) });
+        var tasks = ipAddresses.Select(async ip => new { IP = ip, Result = await SendScanPingAsync(ip, timeout) });
         var results = await Task.WhenAll(tasks);
         
         return results.ToDictionary(r => r.IP, r => r.Result);
@@ -320,10 +360,18 @@ public class PingService : IDisposable
     // Dispose method to clean up all resources
     public void Dispose()
     {
-        _pingSemaphore?.Dispose();
+        _regularPingSemaphore?.Dispose();
+        _scanPingSemaphore?.Dispose();
         _lastPingTimes?.Clear();
         GC.SuppressFinalize(this);
     }
+}
+
+// Enum to distinguish ping operation types
+public enum PingType
+{
+    Regular,  // For device monitoring
+    Scan      // For network scanning
 }
 
 // Enhanced result class with more information

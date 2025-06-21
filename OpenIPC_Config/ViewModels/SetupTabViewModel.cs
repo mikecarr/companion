@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -937,45 +938,136 @@ private string CalculateChecksum(byte[] data)
         //Log.Debug("OfflineUpdate executed..done");
     }
 
+    
     private async void ScanNetwork()
+{
+    ScanMessages = "Starting scan...";
+    await Task.Delay(500);
+
+    ScanIPResultTextBox = string.Empty;
+    var foundHosts = new ConcurrentBag<string>(); // Thread-safe collection
+    var totalHosts = 254;
+    var completedScans = 0;
+
+    // Get the PingService instance
+    var pingService = PingService.Instance(Logger);
+
+    // Batch processing to avoid overwhelming the system
+    const int batchSize = 20; // Process 20 IPs at a time
+    var allHosts = Enumerable.Range(1, totalHosts).Select(i => ScanIpLabel + i).ToList();
+    
+    Logger.Information($"Starting network scan of {totalHosts} hosts in batches of {batchSize}");
+
+    for (int batchStart = 0; batchStart < allHosts.Count; batchStart += batchSize)
     {
-        ScanMessages = "Starting scan...";
-        //ScanIPResultTextBox = "Available IP Addresses on your network:";
-        await Task.Delay(500); // Replace Thread.Sleep with async-friendly delay
-
-        var pingTasks = new List<Task>();
-
-        ScanIPResultTextBox = string.Empty;
-
-        for (var i = 0; i < 254; i++)
+        var batch = allHosts.Skip(batchStart).Take(batchSize).ToList();
+        
+        // Process current batch
+        var batchTasks = batch.Select(async host =>
         {
-            var host = ScanIpLabel + i;
-            Log.Debug($"Scanning {host}()");
-
-            // Use async ping operation
-            var pingTask = Task.Run(async () =>
+            try
             {
-                var ping = new Ping();
-                var pingReply = await ping.SendPingAsync(host);
-
+                Logger.Verbose($"Scanning {host}");
+                
+                // Use the scan-specific ping method with shorter timeout
+                var result = await pingService.SendScanPingAsync(host, 1500); // Reduced timeout for faster scanning
+                
+                // Thread-safe increment
+                var currentCompleted = Interlocked.Increment(ref completedScans);
+                var progressPercent = (currentCompleted * 100) / totalHosts;
+                
+                // Update UI on main thread
                 await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    ScanMessages = $"Scanned {host}, result: {pingReply.Status}";
-                    //ScanIPResultTextBox += Environment.NewLine + host + ": " + pingReply.Status.ToString();
-                    if (pingReply.Status == IPStatus.Success) ScanIPResultTextBox += host + Environment.NewLine;
+                    ScanMessages = $"Scanned {currentCompleted}/{totalHosts} hosts ({progressPercent}%) - Current: {host}";
+                    
+                    if (result.Success)
+                    {
+                        foundHosts.Add(host);
+                        ScanIPResultTextBox += $"{host} - {result.Method} ({result.RoundtripTime}ms)" + Environment.NewLine;
+                        Logger.Information($"Found active host: {host} via {result.Method}");
+                    }
+                    else
+                    {
+                        Logger.Verbose($"Host {host} not reachable: {result.ErrorMessage}");
+                    }
                 });
-            });
-            pingTasks.Add(pingTask);
+                
+                return result;
+            }
+            catch (Exception ex)
+            {
+                var currentCompleted = Interlocked.Increment(ref completedScans);
+                
+                await Dispatcher.UIThread.InvokeAsync(() =>
+                {
+                    var progressPercent = (currentCompleted * 100) / totalHosts;
+                    ScanMessages = $"Scanned {currentCompleted}/{totalHosts} hosts ({progressPercent}%) - Error on: {host}";
+                });
+                
+                Logger.Warning($"Error scanning {host}: {ex.Message}");
+                return null;
+            }
+        }).ToList();
+        
+        // Wait for current batch to complete before starting next batch
+        await Task.WhenAll(batchTasks);
+        
+        // Small delay between batches to prevent overwhelming the network/system
+        if (batchStart + batchSize < allHosts.Count)
+        {
+            await Task.Delay(100); // 100ms delay between batches
         }
-
-        ScanMessages = "Waiting for scan results.....";
-        // Wait for all ping tasks to complete
-        await Task.WhenAll(pingTasks);
-
-        ScanMessages = "Scan completed";
-        var confirmBox = MessageBoxManager.GetMessageBoxStandard("Scan completed", "Scan completed");
-        await confirmBox.ShowAsync();
+        
+        Logger.Debug($"Completed batch {(batchStart / batchSize) + 1}/{(int)Math.Ceiling((double)allHosts.Count / batchSize)}");
     }
+
+    // Convert thread-safe collection to list for final processing
+    var foundHostsList = foundHosts.ToList();
+    
+    // Update final results
+    await Dispatcher.UIThread.InvokeAsync(() =>
+    {
+        ScanMessages = $"Scan completed - Found {foundHostsList.Count} active hosts";
+        
+        if (foundHostsList.Count > 0)
+        {
+            ScanIPResultTextBox += Environment.NewLine + $"=== Found {foundHostsList.Count} active hosts ===";
+            
+            // Sort and display found hosts
+            var sortedHosts = foundHostsList.OrderBy(h => 
+            {
+                var parts = h.Split('.');
+                return int.Parse(parts[3]); // Sort by last octet
+            }).ToList();
+            
+            ScanIPResultTextBox += Environment.NewLine + "Sorted list:";
+            foreach (var host in sortedHosts)
+            {
+                ScanIPResultTextBox += Environment.NewLine + "• " + host;
+            }
+        }
+        else
+        {
+            ScanIPResultTextBox = "No active hosts found in the specified range." + Environment.NewLine +
+                                 "This could mean:" + Environment.NewLine +
+                                 "• No devices are online in this subnet" + Environment.NewLine +
+                                 "• Devices have firewalls blocking ping/connections" + Environment.NewLine +
+                                 "• Wrong subnet range specified";
+        }
+    });
+
+    Logger.Information($"Network scan completed. Found {foundHostsList.Count} active hosts out of {totalHosts} scanned.");
+
+    var confirmBox = MessageBoxManager.GetMessageBoxStandard(
+        "Scan Completed", 
+        $"Network scan completed!\n\n" +
+        $"• Scanned: {totalHosts} hosts\n" +
+        $"• Found: {foundHostsList.Count} active hosts\n" +
+        $"• Success rate: {(foundHostsList.Count * 100.0 / totalHosts):F1}%",
+        ButtonEnum.Ok);
+    await confirmBox.ShowAsync();
+}
     #endregion
 
     /// <summary>

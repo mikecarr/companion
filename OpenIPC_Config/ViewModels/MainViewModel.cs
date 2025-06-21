@@ -318,89 +318,92 @@ public partial class MainViewModel : ViewModelBase
     
     // PingTimer_Tick method
     private async void PingTimer_Tick(object? sender, EventArgs e)
+{
+    try
     {
-        try
-        {
-            string currentIpAddress = IpAddress; // Assuming this is the property holding the IP
-            
-            // Check if can connect
-            CheckIfCanConnect();
-            
-            // Important: Store the IP address that was used for this ping operation
-            string ipBeingPinged = currentIpAddress;
-            
-            _logger.Verbose($"PingTimer_Tick executing ping to: {ipBeingPinged}");
-            
-            if (string.IsNullOrEmpty(ipBeingPinged))
-            {
-                _logger.Verbose("Empty IP - Setting IsConnected=false, IsWaiting=true");
-                IsConnected = false;
-                IsWaiting = true;
-                return;
-            }
+        string currentIpAddress = IpAddress;
         
-            try
-            {
-                // Updated to use PingResult instead of PingReply
-                var result = await _pingService.SendPingAsync(ipBeingPinged, (int)_pingTimeout.TotalMilliseconds);
-            
-                // Only update the UI state if the IP we pinged is still the current IP
-                if (ipBeingPinged == IpAddress)
-                {
-                    if (result.Success)
-                    {
-                        _logger.Verbose($"Ping successful via {result.Method} - Setting IsConnected=true, IsWaiting=false (RTT: {result.RoundtripTime}ms)");
-                        
-                        // used for status color changes
-                        IsConnected = true;
-                        IsWaiting = false;
-                        
-                        // enable connect button
-                        CanConnect = true;
-                    }
-                    else
-                    {
-                        _logger.Verbose($"Ping failed via {result.Method} - Setting IsConnected=false, IsWaiting=true (Error: {result.ErrorMessage})");
-                        
-                        // used for status color changes
-                        IsConnected = false;
-                        IsWaiting = true;
-                        
-                        // disable connect button, device not ready
-                        CanConnect = false;
-                    }
-                }
-                else
-                {
-                    _logger.Debug($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring result");
-                }
-            }
-            catch (Exception pingEx)
-            {
-                CanConnect = false;
-                // Only update the UI state if the IP we pinged is still the current IP
-                if (ipBeingPinged == IpAddress)
-                {
-                    Debug.WriteLine(pingEx, $"Error occurred during ping to {ipBeingPinged}");
-                    IsConnected = false;
-                    IsWaiting = true;
-                    _logger.Verbose("Current state after exception: IsConnected=False, IsWaiting=True");
-                }
-                else
-                {
-                    _logger.Verbose($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring error");
-                }
-            }
+        // Check if can connect
+        CheckIfCanConnect();
         
-            Debug.WriteLine($"After ping to {ipBeingPinged}: IsConnected={IsConnected}, IsWaiting={IsWaiting}");
-        }
-        catch (Exception ex)
+        // Important: Store the IP address that was used for this ping operation
+        string ipBeingPinged = currentIpAddress;
+        
+        _logger.Verbose($"PingTimer_Tick executing ping to: {ipBeingPinged}");
+        
+        if (string.IsNullOrEmpty(ipBeingPinged))
         {
-            _logger.Error(ex, "Unhandled error in PingTimer_Tick");
+            _logger.Verbose("Empty IP - Setting IsConnected=false, IsWaiting=true");
             IsConnected = false;
             IsWaiting = true;
+            return;
         }
+    
+        try
+        {
+            // Get the PingService singleton instance
+            var pingService = PingService.Instance(_logger);
+            
+            // Use the regular ping method (not scan) - this uses the default timeout
+            var result = await pingService.SendPingAsync(ipBeingPinged);
+        
+            // Only update the UI state if the IP we pinged is still the current IP
+            if (ipBeingPinged == IpAddress)
+            {
+                if (result.Success)
+                {
+                    _logger.Verbose($"Ping successful via {result.Method} - Setting IsConnected=true, IsWaiting=false (RTT: {result.RoundtripTime}ms)");
+                    
+                    // used for status color changes
+                    IsConnected = true;
+                    IsWaiting = false;
+                    
+                    // enable connect button
+                    CanConnect = true;
+                }
+                else
+                {
+                    _logger.Verbose($"Ping failed - Setting IsConnected=false, IsWaiting=true (Error: {result.ErrorMessage})");
+                    
+                    // used for status color changes
+                    IsConnected = false;
+                    IsWaiting = true;
+                    
+                    // disable connect button, device not ready
+                    CanConnect = false;
+                }
+            }
+            else
+            {
+                _logger.Debug($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring result");
+            }
+        }
+        catch (Exception pingEx)
+        {
+            CanConnect = false;
+            // Only update the UI state if the IP we pinged is still the current IP
+            if (ipBeingPinged == IpAddress)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error occurred during ping to {ipBeingPinged}: {pingEx}");
+                IsConnected = false;
+                IsWaiting = true;
+                _logger.Verbose("Current state after exception: IsConnected=False, IsWaiting=True");
+            }
+            else
+            {
+                _logger.Verbose($"IP changed during ping from {ipBeingPinged} to {IpAddress} - ignoring error");
+            }
+        }
+    
+        System.Diagnostics.Debug.WriteLine($"After ping to {ipBeingPinged}: IsConnected={IsConnected}, IsWaiting={IsWaiting}");
     }
+    catch (Exception ex)
+    {
+        _logger.Error(ex, "Unhandled error in PingTimer_Tick");
+        IsConnected = false;
+        IsWaiting = true;
+    }
+}
     
     #endregion
 
